@@ -27,7 +27,7 @@ configuration of the server as provided by ServerBeach.
 This is a work-in-progress; check the "last update" data at the top for new versions.
 
 <p/>
-<b>II. Steps</b><br/>
+<b>II. Basic Server Configuration</b><br/>
 <ol>
   <li><b>Domain name</b>
   <ol type="a">
@@ -98,6 +98,21 @@ Edit /etc/rc.d/rc.local, and add the following line to the bottom:
 
 This will ensure the firewall gets turned on when the server reboots.
 
+<p/>
+<li><b>Update all installed software</b>.&nbsp;
+As root, do:
+<pre>
+   yum update
+</pre>
+and answer "yes" or the equivalent to all questions.
+
+</ol>
+
+<p/>
+<b>III. Install software needed to build and run Caucus</b>.
+
+<ol>
+<li> cc
 </ol>
 
 
