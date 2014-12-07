@@ -28,64 +28,8 @@
 # 10/08/08 Charles Roth.  First version.
 #-------------------------------------------------------------------------
 
-Q2 is 207.198.118.24
-CR is 216.216.68.69          # peets 5/6/2014
-CR is 198.0.108.227          # starbucks 3/29/2014
-CR is 74.209.178.8           # echo.alchemycs.com
-CR is 99.19.70.21            # Jeff Cooper 7/7/2013
-CR is 64.134.164.80          # Starbucks 7/1/13
-CR is 76.74.252.135          # p5.coexploration.org , temporary!
-CR is 64.134.160.207         # McD's 4/8/13
-CR is 69.246.8.242           # parents 9/16/12
-CR is 99.17.69.154           # Bob Evans 8/1/12
-CR is 66.135.55.205          # sb3.gjhost.com
-CR is 164.76.158.113         # hobo.emich.edu
-CR is 165.215.35.10          # pqz39app301v proquest
-CR is 64.134.39.12           # mcdonalds 9/9/11
-CR is 165.215.94.5/24        # proquest 7/26/11
-CR is 165.215.105.21         # proquest 8/12/11
-CR is 64.134.123.205         # BN 7/14/11
-CR is 108.98.29.10
 CR is 173.167.7.107/24       # CR @ home 5/21/2010
-CR is 172.27.176.34/24       # CR @ proquest 2/28/2011
-CR is 172.25.8.46/24         # CR @ proquest 7/21/2011
-CR is 165.215.94.11          # CR @ ProQuest 1/4/2011
-CR is 165.215.105.84/24      # CR @ ProQuest 8/14/11
-CR is 199.2.105.195/24       # CR @ Terpsichore 12/27/2010
-CR is 184.226.31.58/24       # CR mifi 12/27/2010
-CR is 99.60.195.29           # CR @ Bob Evans 12/8/2010
-CR is 99.150.172.70          # CR @ Bob Evans 2/13/2011
-CR is 64.134.174.8/24        # McDonalds near AALC
-CR is 64.134.169.149/24      # McDonalds washtenaw 12/7/10
-CR is 207.75.146.125         # at Ithaka 10/18/2010
-CR is 65.211.137.226         # Panera AA 10/21/2010
-CR is 64.134.196.72          # Starbucks Arborland 9/1/10
-CR is 64.134.33.59           # ditto 9/9/10
-CR is 70.9.90.68/24          # MiFi
-CR is 173.148.25.136         # MiFi 7/8/10
-CR is 140.244.128.12         # Gale 5/27/10
-CR is 134.215.216.127        # FPCY 6/27/10
-CR is 134.215.218.54         # FPCY 12/5/10
-CR is 71.255.228.185         # Auntie-L 8/23/10
-CR is 99.130.30.133          # Grand Pie CO 10/14/10
-CR is 173.167.7.107          # caucus.com
-
-GJ is 66.135.50.158
-P2 is 64.34.176.241 
-P3 is 66.135.59.80           # p3.coexploration.org
-P4 is 66.135.59.93           # p4.coexploration.org
-
-PQ is 165.215.94.6/24        # Anyone at proquest
-PQ is 172.26.215.13/24       # Any server at proquest
-PQ is 172.26.248.60/24
-PQ is 165.215.95.48/24
-PQ is 165.215.105.1/24
-PQ is 74.125.1.1/16          # Google Scholar, 4/24/2012 temporary
-
-#HOME is 173.167.7.108
-#HOME is 173.167.7.109
-
-CAUCUS is 64.34.180.139      # CR @ caucus.com 3/20/09
+PT is 72.83.229.126/24       # Peter  11/28/08
 
 ANYONE is *                  # anyone in the world
 
@@ -99,26 +43,14 @@ ANYONE is *                  # anyone in the world
 #   53 = DNS
 #   80 = HTTP
 #  110 = POP3
-#  137 = netbios/name-server (samba)
-#  138 = datagram            (samba)
-#  139 = session service     (samba)
 #  143 = IMAP
 #  389 = LDAP
 #  443 = HTTPS
 # 3306 = MySQL
-# 3690 = SVN
 # 5901 = VNC
-# 8090 = confluence
 
 #---"Gets" rules.  Who gets to use which ports.  Try to keep them lined
 #   up for readability's sake.
-CR     gets 22 3306 3690 5901 10025 137 138 139
-GJ     gets 22
-CAUCUS gets 22
-P2     gets 22
-P3     gets 22
-P4     gets 22
-ANYONE gets 25 53 80 110 143 443 3690 8080 10025 8443 8081 8090
-PQ     gets 21
-Q2     gets 3306
-#HOME   gets 137 138 139
+CR     gets 22 3306 3690 5901
+PT     gets 22 3306 3690 5901
+ANYONE gets 80 443

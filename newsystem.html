@@ -5,7 +5,7 @@
   <title>Configuring a new COE RHEL/CentOS linux system</title>
   <style type="text/css">
      body,td { font-family: arial;  font-size: 80%; }
-     tt { font-size: 120%; }
+     tt,pre { font-size: 120%; }
      
      LI { margin-top: .4em; }
   </style>
@@ -66,8 +66,37 @@ This is a work-in-progress; check the "last update" data at the top for new vers
       </table>
       </ul>
 
+    <p/>
+    Change the root password.
+
 <p/>
-<li><b>Iptables firewall</b>
+<li><b>Install git</b>.&nbsp; As root,
+<pre>
+   yum install git
+</pre>
+
+<p/>
+<li><b>Set up Iptables firewall</b>.&nbsp;
+As root, check out the COE scripts repository, 
+and copy the firewall scripts to /usr/local/bin:
+<pre>
+   git clone git@github.com:wcroth55/coe.git COE
+   cp COE/firewall          /usr/local/bin
+   cp COE/firewallRules.txt /usr/local/bin
+   chmod 700                /usr/local/bin/firewall*
+</pre>
+
+Edit /usr/local/bin/firewallRules.txt to
+assign roles and IP addresses as appropriate.&nbsp;
+See the comments at the top of the file for details.
+
+<p/>
+Edit /etc/rc.d/rc.local, and add the following line to the bottom:
+<pre>
+   /usr/local/bin/firewall
+</pre>
+
+This will ensure the firewall gets turned on when the server reboots.
 
 </ol>
 
