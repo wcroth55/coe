@@ -1,0 +1,133 @@
+#!/bin/sh
+#
+#---firewall    Set my local firewall/iptables configuration
+#
+# Charles Roth (www.thedance.net)
+# Revision history:
+#   2004-01-26 First version.
+#   2008-10-08 MAJOR rewrite to use firewallRules.txt rule definitions.
+#
+# Notes:
+#--------------------------------------------------------------------
+
+PATH=/sbin:$PATH
+
+#---Define most commonly used iptables shortcut functions:
+#   arg1:  port number
+#   arg2:  interface device (e.g. eth0, eth1)
+#   arg3:  ip address
+let_in() {
+   dev=""
+   ipa=""
+   if test "x$2" != "x"; then
+      dev="-i $2"
+   fi
+   if test "x$3" != "x"; then
+      ipa="-s $3"
+   fi
+   iptables -A INPUT  -p tcp --dport $1 $dev $ipa -m state --state NEW -j ACCEPT
+}
+
+let_out() {
+   dev=""
+   ipa=""
+   if test "x$2" != "x"; then
+      dev="-o $2"
+   fi
+   if test "x$3" != "x"; then
+#     ipa="-d $3"
+      ipa="-s $3"
+   fi
+   iptables -A OUTPUT -p tcp --dport $1 $dev $ipa -m state --state NEW -j ACCEPT
+}
+
+#--------------------------------------------------------------------
+
+modprobe ip_tables
+modprobe ip_conntrack
+modprobe ip_conntrack_ftp
+
+#---Clean out any old rules
+iptables --flush
+iptables --delete-chain
+
+#---Set defaults to DROP
+iptables -P INPUT   DROP
+iptables -P FORWARD DROP
+iptables -P OUTPUT  DROP
+
+#---Allow any loopback connection
+iptables -A INPUT  -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
+
+#--------------------------------------------------------------------
+
+#---Simple anti-spoofing rules.
+#iptables -A INPUT -s 127.0.0.0/8    -j DROP  # probably too restrictive.
+iptables -A INPUT -s 255.0.0.0/8    -j DROP
+iptables -A INPUT -s 0.0.0.0/8      -j DROP
+iptables -A INPUT -s 192.168.0.0/16 -j DROP
+iptables -A INPUT -s 172.16.0.0/12  -j DROP
+iptables -A INPUT -s 10.0.0.0/8     -j DROP
+
+#---Anti-stealth-scanning rule.
+iptables -A INPUT -p tcp ! --syn -m state --state NEW -j DROP
+
+#--------------------------------------------------------------------
+
+#---Accept inbound & outbound packets that are part of previously OK'd sessions
+iptables -A INPUT    -j ACCEPT -m state --state ESTABLISHED,RELATED
+iptables -I OUTPUT 1 -j ACCEPT -m state --state RELATED,ESTABLISHED
+
+#---Accept DNS udp packets.
+iptables -A INPUT -p udp -j ACCEPT --dport  53   -m state --state NEW
+
+#--------------------------------------------------------------------
+
+firewallRules="/usr/local/bin/firewallRules.txt"
+cat $firewallRules | tr "\*" "+" | \
+    grep -v "^ *#" |   \
+    grep -v "^ *$" | ( \
+    while read a b c d e f g h i j k; do
+       if   test "$b" = "is";   then
+          eval $a=\"${!a} $c\"
+       elif test "$b" = "gets"; then
+          for port in $c $d $e $f $g $h $i $j $k; do
+             for ip in ${!a}; do
+                if test "$ip" = "+"; then
+                   ip=""
+                fi
+                let_in $port eth0 $ip
+             done
+          done
+       fi
+    done
+)
+
+#---Allow output:
+
+iptables -A OUTPUT -p udp --dport    53 -m state --state NEW -j ACCEPT  # dns
+iptables -A OUTPUT -p icmp -j ACCEPT --icmp-type echo-request           # ping
+iptables -A OUTPUT -p udp --dport   123 -j ACCEPT                       # ntp
+iptables -A OUTPUT -p tcp --dport   123 -j ACCEPT                       # ntp
+
+ let_out   21    # ftp
+ let_out   22    # ssh
+ let_out   23    # telnet
+ let_out   25    # smtp
+ let_out   53    # dns
+ let_out   80    # http
+ let_out  110    # pop3
+ let_out  210    # pop3
+ let_out  443    # https
+#let_out 1863    # MSN IM server
+#let_out 2020    # alternate ssh
+#let_out 2401    # CVS
+ let_out 3306    # mysql
+ let_out 3389    # windows remote access
+ let_out 3690    # svn
+ let_out 8080    # dlink remote admin
+ let_out 8888    # dlink remote admin
+
+
+#--------------------------------------------------------------------
