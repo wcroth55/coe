@@ -14,7 +14,7 @@
 
 <h2>Configuring a new COE RHEL/CentOS linux system</h2>
 Charles Roth<br/>
-Last update: 2014-12-07
+Last update: 2014-12-12
 
 <p/><b>I. Introduction</b><br>
 This document 
@@ -57,7 +57,8 @@ This is a work-in-progress; check the "last update" data at the top for new vers
 <p/>
    
   <li><b>Root login</b>.&nbsp;
-      Edit /etc/ssh/sshd_config, make sure it is using "Protocol 2", and 
+   <ol type="a">
+   <li>Edit /etc/ssh/sshd_config, make sure it is using "Protocol 2", and 
       "PermitRootLogin yes".&nbsp; Restart sshd with:
       <ul>
       <table>
@@ -67,7 +68,23 @@ This is a work-in-progress; check the "last update" data at the top for new vers
       </ul>
 
     <p/>
-    Change the root password.
+    <li>Change the root password.
+
+    <p/>
+    <li>Edit /root/.bash_profile, add this line to the bottom:
+<pre>
+   export PS1='p7:$PWD # '
+</pre>
+   where p7 is the short name of the new box.&nbsp;
+   Logout and log back in.
+
+<p/>
+   <li>Create /root/.forward, and make it contain the addresses
+   that 'root' email should go to, e.g.
+<pre>
+   croth@thedance.net,scott.tudd@gmail.com
+</pre>
+</ol>
 
 <p/>
 <li><b>Install git</b>.&nbsp; As root,
@@ -77,7 +94,8 @@ This is a work-in-progress; check the "last update" data at the top for new vers
 
 <p/>
 <li><b>Set up Iptables firewall</b>.&nbsp;
-As root, check out the COE scripts repository, 
+<ol type="a">
+<li>As root, check out the COE scripts repository, 
 and copy the firewall scripts to /usr/local/bin:
 <pre>
    git clone git@github.com:wcroth55/coe.git COE
@@ -86,17 +104,26 @@ and copy the firewall scripts to /usr/local/bin:
    chmod 700                /usr/local/bin/firewall*
 </pre>
 
-Edit /usr/local/bin/firewallRules.txt to
+<li>Edit /usr/local/bin/firewallRules.txt to
 assign roles and IP addresses as appropriate.&nbsp;
 See the comments at the top of the file for details.
 
 <p/>
-Edit /etc/rc.d/rc.local, and add the following line to the bottom:
+<li>Edit /etc/rc.d/rc.local, and add the following line to the bottom:
 <pre>
    /usr/local/bin/firewall
 </pre>
 
 This will ensure the firewall gets turned on when the server reboots.
+
+<p/>
+<li>
+<b>Important: turn on the firewall now!</b>&nbsp;
+As root, just type:
+<pre>
+   firewall
+</pre>
+</ol>
 
 <p/>
 <li><b>Update all installed software</b>.&nbsp;
@@ -106,15 +133,89 @@ As root, do:
 </pre>
 and answer "yes" or the equivalent to all questions.
 
+
+<p/>
+<li><b>Time</b>
+<ol type="a">
+<li>Set time zone to Eastern US:
+<pre>
+   rm -f /etc/localtime
+   ln -s /usr/share/zoneinfo/America/New_York /etc/localtime
+</pre>
+
+<p/>
+<li>Enable ntpd time correction:
+<pre>
+   service ntpd start
+</pre>
+
+Edit /etc/rc.d/rc.local, and add the line:
+<pre>
+   /usr/sbin/service ntpd start
+</pre>
+
+</ol>
+
+<p/>
+<li><b>Web server</b>
+  <ol type="a">
+  <li>Install:
+<pre>
+   yum install httpd.x86_64
+</pre>
+
+  <p/>
+  <li>Make configuration changes.
+   <ol type="i">
+   <li>Copy local.conf from the git COE checkout, to /etc/httpd/conf.
+   <li>Edit /etc/httpd/conf/httpd.conf:<br/>
+      Comment out "UserDir disabled"<br/>
+      Comment out "AddDefaultCharset UTF-8"<br/>
+      Add "Include conf/local.conf" (to the very end)<br/>
+   </ol>
+
+  </ol>
+
 </ol>
 
 <p/>
 <b>III. Install software needed to build and run Caucus</b>.
 
 <ol>
-<li> cc
+<li><b>MySQL</b>.&nbsp;
+On CentOS 7 and above, they are using MariaDB instead of MySQL.&nbsp;
+MariaDB is a fork of MySQL, by many of  the original MySQL developers, who
+were unhappy that Oracle ended up owning MySQL.&nbsp;
+<p/>
+This change should not affect the use of the databases, and (except where specific
+instructions may differ) we'll continue to call it "MySQL".
+
+<pre>
+   yum install mysql
+   yum install mariadb-server.x86_64
+   yum install mariadb-devel.x86_64
+   service mysqld start
+   mysql_secure_installation
+</pre>
+and answer Y to all of the questions.
+<p/>
+Verify that you can use MySQL:
+<pre>
+   mysql -u root -p
+   show databases;
+   quit;
+</pre>
+
+<p/>
+<li><b>C development tools</b>
+<pre>
+   yum install subversion.x86_64
+   yum install gcc.x86_64
+
 </ol>
 
+<b>IV. Building Caucus</b><br/>
+make userid</br>
 
 
 </body>
