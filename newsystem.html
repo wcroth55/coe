@@ -121,6 +121,12 @@ IP address ranges to include.
 This will ensure the firewall gets turned on when the server reboots.
 
 <p/>
+<b>Note:</b> make sure to do:
+<pre>
+   chmod 755 /etc/rc.d/rc/local
+</pre>
+
+<p/>
 <li>
 <b>Important: turn on the firewall now!</b>&nbsp;
 As root, just type:
@@ -194,6 +200,30 @@ Edit /etc/rc.d/rc.local, and add the line:
 
   </ol>
 
+  <p/>
+  <li>Add additional disk(s)</b>, if relevant.&nbsp;
+      Example shown for adding a second disk.
+<pre>
+   fdisk /dev/sdb
+   n
+   p
+   1
+         <i>(press Enter to accept default)</i>
+         <i>(press Enter to accept default)</i>
+   w
+
+   mkfs -t ext3 /dev/sdb1
+   mkdir /disk2
+   mount -t ext3 /dev/sdb1 /disk2
+</pre>
+
+And (of course), add the mount command to /etc/rc.d/rc.local:
+<pre>
+   /usr/bin/mount -t ext3 /dev/sdb1 /disk2
+</pre>
+
+   
+
 </ol>
 
 <p/>
@@ -212,7 +242,7 @@ instructions may differ) we'll continue to call it "MySQL".
    yum install mysql
    yum install mariadb-server.x86_64
    yum install mariadb-devel.x86_64
-   service mysqld start
+   service mariadb start
    mysql_secure_installation
 </pre>
 and answer Y to all of the questions.
@@ -222,6 +252,11 @@ Verify that you can use MySQL:
    mysql -u root -p
    show databases;
    quit;
+</pre>
+
+Start MySQL at boot: edit /etc/rc.d/rc.local, and add
+<pre>
+   /usr/sbin/service mariadb start
 </pre>
 
 <p/>
@@ -245,8 +280,17 @@ Verify that you can use MySQL:
 
 </ol>
 
-<b>IV. Building Caucus</b><br/>
-make userid</br>
+<b>IV. Next?</b>
+<ol>
+<li>Test building and running Caucus.
+<li>Anti-virus
+<li>Configure email (if only for email participation/notification?)
+<li>Docker?
+<li>Backups?
+<li>MySQL master/slave?
+<li>How-To move an existing Caucus site (easy)
+<li>...?
+</ol>
 
 
 </body>
