@@ -250,7 +250,25 @@ And (of course), add the mount command to /etc/rc.d/rc.local:
    yum install mysql
    yum install mysql-server.x86_64
    yum install mysql-devel.x86_64
+</pre>
 
+Edit /etc/my.cnf, and (before the [mysqld_safe] section),
+add these lines to make MySQL use a larger share of RAM:
+<pre>
+   #---Optimization changes
+   innodb_log_file_size = 100M
+   innodb_buffer_pool_size = 4000M
+   innodb_flush_method = O_DIRECT
+   innodb_flush_log_at_trx_commit = 2
+   table_cache = 8192
+   open_files_limit = 8192
+   innodb_support_xa = off
+   max_connections=500
+</pre>
+
+Then continue with starting and initializing MySQL:
+
+<pre>
    service mysqld start
    mysql_secure_installation
 </pre>
