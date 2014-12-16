@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
-  <title>Configuring a new COE RHEL/CentOS 6 linux system</title>
+  <title>Configuring a new COE RHEL/CentOS linux system</title>
   <style type="text/css">
      body,td { font-family: arial;  font-size: 80%; }
      tt,pre { font-size: 120%; }
@@ -12,14 +12,14 @@
 </head>
 <body>
 
-<h2>Configuring a new COE RHEL/CentOS 6 linux system</h2>
+<h2>Configuring a new COE RHEL/CentOS linux system</h2>
 Charles Roth<br/>
 Last update: 2014-12-12
 
 <p/><b>I. Introduction</b><br>
 This document 
 describes specific steps taken to set up a new RHEL (Red Hat Enterprise Linux, 
-or CentOS) version 6 server(s) from ServerBeach.&nbsp;
+or CentOS) server(s) from ServerBeach.&nbsp;
 Basically, this is just a record of what we do to change the base 
 configuration of the server as provided by ServerBeach.
 
@@ -84,15 +84,7 @@ This is a work-in-progress; check the "last update" data at the top for new vers
 <pre>
    croth@thedance.net,scott.tudd@gmail.com
 </pre>
-
-<p/>
-<li>Create ssh key:
-<pre>
-   mkdir .ssh
-   chmod 700 .ssh
-   ssh-keygen -b 1024 -t rsa
 </ol>
-(press Enter at all the prompts)
 
 <p/>
 <li><b>Install git</b>.&nbsp; As root,
@@ -111,10 +103,6 @@ and copy the firewall scripts to /usr/local/bin:
    cp COE/firewallRules.txt /usr/local/bin
    chmod 700                /usr/local/bin/firewall*
 </pre>
-(If the checkout does not work, ask Charles to add the contents  of .ssh/id_rsa.pub to
-the list of ssh keys for the COE project.&nbsp;
-Or just check out the project to your laptop, and copy the firewall files over
-manually.)
 
 <li>Edit /usr/local/bin/firewallRules.txt to
 assign roles and IP addresses as appropriate.&nbsp;
@@ -173,7 +161,7 @@ and answer "yes" or the equivalent to all questions.
 
 Edit /etc/rc.d/rc.local, and add the line:
 <pre>
-   /sbin/service ntpd start
+   /usr/sbin/service ntpd start
 </pre>
 
 </ol>
@@ -194,14 +182,15 @@ Edit /etc/rc.d/rc.local, and add the line:
    <li>Edit /etc/httpd/conf/httpd.conf:<br/>
       Comment out "AddDefaultCharset UTF-8"<br/>
       Add "Include conf/local.conf" (to the very end)<br/>
-      Comment out "UserDir disabled"<br/>
+   <li>Edit /etc/httpd/conf.d/userdir.conf, 
+      comment out "UserDir disabled"<br/>
    </ol>
 
    <li><tt>mkdir /etc/httpd/conf/vhosts</tt>
  
    <li>Edit /etc/rc.d/rc.local, add
 <pre>
-   /sbin/service httpd start
+   /usr/sbin/service httpd start
 </pre>
 
    <li>Start web server:
@@ -226,14 +215,11 @@ Edit /etc/rc.d/rc.local, and add the line:
    mkfs -t ext3 /dev/sdb1
    mkdir /disk2
    mount -t ext3 /dev/sdb1 /disk2
-   df -k
 </pre>
-(The last line should show both disks, sda1 and sdb1, as mounted and available.)
 
-<p/>
 And (of course), add the mount command to /etc/rc.d/rc.local:
 <pre>
-   /bin/mount -t ext3 /dev/sdb1 /disk2
+   /usr/bin/mount -t ext3 /dev/sdb1 /disk2
 </pre>
 
    
@@ -245,13 +231,18 @@ And (of course), add the mount command to /etc/rc.d/rc.local:
 
 <ol>
 <li><b>MySQL</b>.&nbsp;
+On CentOS 7 and above, they are using MariaDB instead of MySQL.&nbsp;
+MariaDB is a fork of MySQL, by many of  the original MySQL developers, who
+were unhappy that Oracle ended up owning MySQL.&nbsp;
+<p/>
+This change should not affect the use of the databases, and (except where specific
+instructions may differ) we'll continue to call it "MySQL".
 
 <pre>
    yum install mysql
-   yum install mysql-server.x86_64
-   yum install mysql-devel.x86_64
-
-   service mysqld start
+   yum install mariadb-server.x86_64
+   yum install mariadb-devel.x86_64
+   service mariadb start
    mysql_secure_installation
 </pre>
 and answer Y to all of the questions.
@@ -265,7 +256,7 @@ Verify that you can use MySQL:
 
 Start MySQL at boot: edit /etc/rc.d/rc.local, and add
 <pre>
-   /sbin/service mysqld start
+   /usr/sbin/service mariadb start
 </pre>
 
 <p/>
@@ -289,102 +280,9 @@ Start MySQL at boot: edit /etc/rc.d/rc.local, and add
 
 </ol>
 
-<b>IV. Build and Test Caucus</b>
+<b>IV. Next?</b>
 <ol>
-<li>Make a userid to test in, e.g.
-<pre>
-   useradd -u 1000 -d /home/croth croth
-   passwd croth
-</pre>
-
-<li>Export Caucus source.&nbsp;
-Logged in as a normal (non-root) user, do:
-<pre>
-   svn export svn://caucus.com/caucus/trunk C5
-</pre>
-
-<li>Build.&nbsp; For a CentOS 6.6 64-bit system, use:
-<pre>
-   cd C5
-   export CPPFLAGS="-D_GNU_SOURCE"
-   ./configure --mysqllib=/usr/lib64/mysql/libmysqlclient.so --nosasl2
-   make
-   mv caucus5.tar ~
-   cd
-   chmod 711 .
-</pre>
-
-<li>As root, create a test userid, e.g.
-<pre>
-   useradd -u 1001 -d /home/p7test p7test
-   passwd p7test
-</pre>
-
-<li>Login to the test userid, and install Caucus, e.g.:
-<pre>
-   su - p7test
-   tar xvf /home/croth/caucus5.tar
-   ./install
-</pre>
-
-Suggested hostname: p7test.coexploration.org<br/>
-Suggested email participation id: p7test (but just give junk when asked for its password,
-not testing that just yet)
-
-<pre>
-   cd SWEB
-   ./swebd ./swebd.conf
-</pre>
-
-<p/>
-<li>Configure test id for http.
-<ol type="a">
-<li>Add p7test.coexploration.org to DNS resolution, to point at p7.coexploration.org.
-<li>As root, create /etc/httpd/conf/vhosts/p7test.coexploration.org, containing:
-<pre>
-&lt;VirtualHost 66.135.33.165&gt;
-   ServerName p7test.coexploration.org
-   DocumentRoot /home/p7test/public_html
-
-   &lt;Directory /home/p7test/SWEB&gt;
-      Options All
-      AllowOverride All
-      allow from all
-   &lt;/Directory&gt;
-   
-   &lt;Directory /home/p7test/REG&gt;
-      Options All
-      AllowOverride All
-      allow from all
-   &lt;/Directory&gt;
-   
-   &lt;Directory /home/p7test/public_html&gt;
-      Options -Indexes
-   &lt;/Directory&gt;
-   
-   ScriptAlias  /sweb/   /home/p7test/SWEB/
-   ScriptAlias  /reg/    /home/p7test/REG/
-   
-&lt;/VirtualHost&gt;
-</pre>
-
-<li>As root, restart http:
-<pre>
-   service httpd restart
-</pre>
-
-</ol>
-<li>Point a browser at http://p7test.coexploration.org.&nbsp;<br/>
-Create the manager user (specified in the install dialog),
-login, create a conference, and create an item.
-</ol>
-
-
-
-</ol>
-
-<b>V. Next?</b>
-<ol>
+<li>Test building and running Caucus.
 <li>Anti-virus
 <li>Configure email (if only for email participation/notification?)
 <li>Docker?
