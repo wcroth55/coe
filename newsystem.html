@@ -395,16 +395,177 @@ not testing that just yet)
 <li>Point a browser at http://p7test.coexploration.org.&nbsp;<br/>
 Create the manager user (specified in the install dialog),
 login, create a conference, and create an item.
+
+<p/>
+<li>Additional configuration.&nbsp; Edit the Caucus configuration
+file (e.g. /home/p7test/SWEB/swebd.conf) and change values
+needed for your specific site.&nbsp;
+For example:
+<pre>
+   Config convertDir /usr/bin
+
+   Config url  /usr/bin/curl
+</pre>
+
 </ol>
 
-
-
 </ol>
 
-<b>V. Next?</b>
+<p/>
+<b>V. Antivirus</b>
+The primary purpose of the antivirus software is to detect
+virus-laden software that is uploaded by users <b>into</b>
+Caucus.
+
 <ol>
-<li>Anti-virus
-<li>Configure email (if only for email participation/notification?)
+<li>Prepare clamav user and group.
+<pre>
+   groupadd clamav
+   useradd -g clamav -s /bin/false -c "Clam AntiVirus" clamav
+</pre>
+
+<li>Download source for the free ClamAV from 
+http://www.clamav.net/download.html#sourcecode
+
+<li>Build.&nbsp;
+As root, do:
+<pre>
+   tar xvf clamav-0.98.5.tar.gz
+   cd clamav-0.98.5
+   ./configure
+   make
+   make install
+
+   mkdir -p /usr/local/share/clamav
+   chown clamav:clamav /usr/local/share/clamav
+
+   touch /var/log/clamd.log
+   chown clamav /var/log/clamd.log
+
+   touch /var/log/freshclam.log
+   chown clamav /var/log/freshclam.log
+</pre>
+
+<li>Configure:
+<ol type="a">
+<li>Copy /usr/local/etc/clamd.conf.sample to /usr/local/etc/clamd.conf.&nbsp;
+Edit the latter file.<br/>
+Uncomment the "TCPSocket" line.</br>
+Comment out "Example".<br/>
+Change the commented-out LogFile line to:
+<pre>
+   LogFile /var/log/clamd.log
+</pre>
+
+<p/>
+<li>Copy /usr/local/etc/freshclam.conf to /usr/local/etc/freshclam.conf.<br/>
+Comment out the "Example" line.<br/>
+Uncomment the UpdateLogFile line.<br/>
+Change the DatabaseMirror line to (uncommented):
+<pre>
+   DatabaseMirror db.us.clamav.net
+</pre>
+
+<p/>
+<li>Run 'freshclam' virus signature update tool:
+<pre/>
+   freshclam
+</pre>
+
+<p/>
+<li>Run 'freshclam' once a day.&nbsp; Add (something like) the following
+to your crontab:
+<pre>
+   10 3 * * * /usr/local/bin/freshclam --quiet
+</pre>
+
+<p/>
+<li>Start the 'clamd' daemon:
+<pre>
+   clamd
+</pre>
+
+<p/>
+<li>Run 'clamd' at boot time.&nbsp;
+Edit /etc/rc.d/rc.local and add:
+<pre>
+   /usr/local/sbin/clamd
+</pre>
+
+<p/>
+<li>Connect to Caucus.<br/>
+Copy the 'viruschecker' file from the COE git repository, to /usr/local/bin.
+<pre>
+   chmod 755 /usr/local/bin/viruschecker
+</pre>
+
+</ol>
+
+<p/>
+<b>VI. Configure Email</b>
+<ol>
+<li>Create a new userid 'mailhandler', e.g. something like:
+<pre>
+   adduser -u 1003 -d /home/mailhandler mailhandler
+</pre>
+
+<li>Set it to throw away email it receives.&nbsp;
+(Later we'll reconfigure it to handle incoming
+email-to-a-Caucus-item.)
+<pre>
+   su - mailhandler
+   echo "/dev/null" >.forward
+   chmod 755 .forward
+</pre>
+
+<p/>
+<li>Configure postfix email.&nbsp;
+Add the text below to the end of /etc/postfix/main.cf,
+substituting in the appropriate values for the underlined text:
+
+<pre>
+   inet_interfaces = all
+   myhostname=<u>p7.coexploration.org</u>
+   mydestination = $myhostname, localhost.$mydomain, localhost
+   mynetworks = <u>66.135.33.165</u>, 127.0.0.1
+   myorigin = $myhostname
+   #alias_maps = hash:/etc/postfix/aliases
+   #alias_database = hash:/etc/postfix/aliases
+   smtpd_sasl_auth_enable = yes
+   broken_sasl_auth_clients = yes
+   smtpd_recipient_restrictions = permit_mynetworks, permit_sasl_authenticated, reject_unauth_destination
+   max_use=10
+   local_recipient_maps =
+   luser_relay = mailhandler
+   #canonical_maps = hash:/etc/postfix/sender_canonical
+</pre>
+
+<p/>
+Then restart Postfix:
+<pre>
+   service postfix restart
+</pre>
+
+<p/>
+<li>Allow incoming email.&nbsp;
+Edit /usr/local/bin/firewallRules.txt, and change the ANYONE rule at the bottom
+to include port 25, e.g.
+<pre>
+   ANYONE gets 80 443 25
+</pre>
+Then restart the firewall.&nbsp; As root, run:
+<pre>
+   firewall
+</pre>
+
+
+</ol>
+
+
+
+<p/>
+<b>VII. Next?</b>
+<ol>
 <li>Docker?
 <li>Backups?
 <li>MySQL master/slave?
