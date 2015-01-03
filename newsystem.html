@@ -250,6 +250,7 @@ And (of course), add the mount command to /etc/rc.d/rc.local:
    yum install mysql
    yum install mysql-server.x86_64
    yum install mysql-devel.x86_64
+   yum install telnet    <i>(this is just the client, not the telnet server)</i>
 </pre>
 
 Edit /etc/my.cnf, and (before the [mysqld_safe] section),
@@ -500,6 +501,7 @@ Copy the 'viruschecker' file from the COE git repository, to /usr/local/bin.
 </pre>
 
 </ol>
+</ol>
 
 <p/>
 <b>VI. Configure Email</b>
@@ -564,11 +566,96 @@ Then restart the firewall.&nbsp; As root, run:
 
 
 <p/>
-<b>VII. Next?</b>
+<b>VII. MySQL Replication</b><br/>
+This section assumes that we have two servers in play: server A, which will
+be the master, and server B, which is (mostly) used as a failover server
+in case A should die or become unavailable.
+
+<p/>
+The standard MySQL server (service) on B will be used as the MySQL slave
+in the replication scheme.&nbsp;
+Other databases (i.e. other than those on A) may exist on B, but be
+very careful not to use the names of any databases that could potentially
+be created on A.
+
+<ol>
+<li><b>Clean up the master</b>.&nbsp;
+On A: remove the test Caucus space (and database!).&nbsp;
+This makes setting up the MySQL replication much easier.&nbsp;
+<p/>
+E.g. for a test Caucus space <b>p7test</b>, do:
+<pre>
+   su - p7test
+   ps x | grep "swebd "
+   kill -1 <i>(fill in the process id of the swebs task)</i>
+   exit
+
+   userdel -r p7test
+
+   mysql -u root -p
+   drop database caucus_p7test;
+   quit;
+</pre>
+
+<p/>
+<li><b>Prepare master for replication</b>.&nbsp;
+Shutdown the MySQL service:
+<pre>
+   service mysqld stop
+</pre>
+
+Edit /etc/my.cnf, and somewhere in the "[mysqld]" section, add these lines:
+<pre>
+   server-id=1
+   log-bin=mysql-bin
+   binlog-ignore-db=mysql
+   binlog-ignore-db=information_schema
+</pre>
+
+(If there are any other databases on A that should <b>not</b> be replicated
+to B, add them as well with additional binlog-ignore-db lines.&nbsp;
+For a new server, these two should be the only such databases.)
+
+<p/>
+Restart MySQL, and verify that it is actually working:
+<pre>
+   service mysqld start
+   mysql -u root -p
+   select now();
+   quit;
+</pre>
+If there is a problem, look in /var/lib/mysql  or /var/log for the MySQL logs.
+
+<p/>
+<li><b>Open firewall on A to B</b>.&nbsp;
+<p/>
+On A, edit /usr/local/bin/firewallRules.txt, and add rules to allow
+incoming ssh and MySQL requests from B.&nbsp;  E.g. for a slave B
+named p8, add lines something like:
+<pre>
+   P8 is 64.34.196.252
+
+   P8     gets 22 3306
+</pre>
+<p/>
+As root, run 'firewall' to update the firewall according
+to the new rules.
+
+<p/>
+<li><b>Clean up the slave.</b>&nbsp;
+Remove the test Caucus site, if any.&nbsp;
+(Follow the instructions from VII.1.)
+
+
+
+</ol>
+
+
+<p/>
+<b>VIII. Next?</b>
 <ol>
 <li>Docker?
 <li>Backups?
-<li>MySQL master/slave?
 <li>How-To move an existing Caucus site (easy)
 <li>...?
 </ol>
