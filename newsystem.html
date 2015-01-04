@@ -604,6 +604,12 @@ Shutdown the MySQL service:
    service mysqld stop
 </pre>
 
+Create the binary logging directory needed for replication:
+<pre>
+   mkdir /var/lib/mysql/log-bin
+   chown mysql:mysql /var/lib/mysql/log-bin
+</pre>
+
 Edit /etc/my.cnf, and somewhere in the "[mysqld]" section, add these lines:
 <pre>
    server-id=1
@@ -627,7 +633,18 @@ Restart MySQL, and verify that it is actually working:
 If there is a problem, look in /var/lib/mysql  or /var/log for the MySQL logs.
 
 <p/>
-<li><b>Open firewall on A to B</b>.&nbsp;
+Create the 'replicator' userid in MySQL:
+<pre>
+   mysql -u root -p
+   grant replication slave on *.* to replicator@'slaveserver.com' identified by 'slavepassword';
+   flush privileges;
+   show master status;
+   quit;
+</pre>
+<b>Save the output</b> from 'show master status'; you'll need it later.
+
+<p/>
+<li><b>Open firewall on master to access from slave</b>.&nbsp;
 <p/>
 On A, edit /usr/local/bin/firewallRules.txt, and add rules to allow
 incoming ssh and MySQL requests from B.&nbsp;  E.g. for a slave B
@@ -643,10 +660,78 @@ to the new rules.
 
 <p/>
 <li><b>Clean up the slave.</b>&nbsp;
-Remove the test Caucus site, if any.&nbsp;
+On B, remove the test Caucus site, if any.&nbsp;
 (Follow the instructions from VII.1.)
 
+<p/>
+<li><b>Prepare the slave.</b>&nbsp;
+on B, edit /etc/my.cnf, and in the [mysqld] section, add:
+<pre>
+   server-id=2
+   master-host = masterserver.com
+   master-user = replicator
+   master-password = slavepassword    <i>(from above!)</i>
+   master-connect-retry = 60
+</pre>
 
+Then restart the slave:
+<pre>
+   service mysqld restart
+</pre>
+
+<p/>
+<li><b>Connect the slave to the master.</b>&nbsp;
+On B:
+
+<pre>
+   mysql -u root -p
+   slave stop;
+   reset slave;
+   change master to master_host='masterserver.com',
+   master_user='replicator',
+   master_password='slavepassword',
+   master_log_file='(as shown in master status)',
+   master_log_pos=(as shown in master status);
+
+   start slave;
+   show slave status\G;
+   quit;
+</pre>
+
+You should see "Slave_IO_Running: Yes" and "Slave_SQL_Running: Yes".&nbsp;
+Anything else means something is wrong 
+(e.g. the firewall is blocking the slave, the wrong ports are in use, etc. etc.).&nbsp;
+Check the mysql logs for details.
+
+<p/>
+<li><b>Create replication test</b> and verify that replication is working.
+<p/>
+On the master A, create a simple database that will be used to continuously
+verify that replication is working:
+<pre>
+   create database replication_test;
+   grant all on replication_test.* to replication_test identified by 'tester';
+   use replication_test;
+   CREATE TABLE last_update (
+     now datetime DEFAULT NULL
+   ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+   insert into last_update (now) values (now());
+   quit;
+</pre>
+
+Look on the slave; you should see this database suddenly appear.
+
+<p/>
+<li><b>Automate replication testing.</b>&nbsp;
+On the master A, create a script /usr/local/bin/replication_tester,
+containing:
+<pre>
+   mysql -u replication_test --password='tester' replication_test \
+         -e "update last_update set now=now();"
+</pre>
+
+Make it executable ("chmod 755 /usr/local/bin/replication_tester")
+and run it from cron every 10 minutes.
 
 </ol>
 

@@ -1,0 +1,42 @@
+#!/bin/sh
+#
+#---replication_verifier
+#
+#   Run from crontab, typically every 10 minutes.
+#   Verifies that the local MySQL slave server 
+#   regular updates from its matching MySQL master server.
+#
+#   Sends success message once/day.
+#   Sends failure message every time.
+#
+#   Charles Roth, 1/4/2015
+#--------------------------------------------------------------------
+
+#---Fill in comma-separated list of email addresses of sysadmin(s)
+#   who should get notified if verification fails.
+addr=croth@thedance.net
+   
+echo "use replication_test; select now(); select now from last_update;" | \
+     /usr/bin/mysql -u replication_test --password=tester  | \
+   ( read
+     read now
+     now=${now:0:15}
+
+     read
+     read then
+     then=${then:0:15}
+#    echo "now =$now"
+#    echo "then=$then"
+
+     slave=`hostname`
+     text="mysql replication to $slave"
+
+     if test "$now" = "$then"; then
+        hour=`echo $now | (read a b; echo $b)`
+        if test "$hour" = "13:0"; then
+           echo "OK: $text"   | mail -s "OK: $text"   $addr
+        fi
+     else
+        echo "FAIL: $text" | mail -s "FAIL: $text" $addr
+    fi
+   )
