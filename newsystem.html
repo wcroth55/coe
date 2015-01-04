@@ -733,6 +733,77 @@ containing:
 Make it executable ("chmod 755 /usr/local/bin/replication_tester")
 and run it from cron every 10 minutes.
 
+<p/>
+Copy the file replication_verifier (from the git repository) to
+<b>slave B's</b> /usr/local/bin, and make it executable.&nbsp;
+Edit the script to change or add the email addresses that should
+receive notices about replication failures.
+
+<p/>
+On B, use cron to run the replication_verifier script every 10 minutes, a few minutes
+after the the master runs replication_tester.&nbsp;
+<p/>
+You should receive an email once a day to verify positively that replication
+is working.&nbsp;
+You will also receive an email <b>any time</b> replication_verifier fails.&nbsp;
+A single failure is not important; if there's a lot of activity on the master
+<b>or</b> slave, replication can slow down a bit.&nbsp;
+But multiple failures in a row are worth investigating.
+
+</ol>
+
+<p/>
+<b>VIII. How to move an existing Caucus site</b><br/>
+In order to move an existing site, you will have to shut it down
+for a period of time, depending on the size of the site.&nbsp;
+Generally it's best to allow a couple of hours.
+
+<p/>
+The instructions below assume that the Caucus userid is 'caucus'
+and the database is called 'caucus_caucus'.&nbsp;
+Modify accordingly.
+<ol>
+<li><b>Stop old site</b>.&nbsp;  E.g.  on the old site, for site 'caucus', do:
+<pre>
+   su - caucus
+   crontab -r
+
+   ps x
+   echo "========"
+
+   ps x | grep -e swebs -e "swebd " -e java | grep -v grep | \
+   (while read a b; do
+       echo kill -1 $a
+    done)
+
+   ps x
+</pre>
+You should see a "before and after" list of Caucus processes, 
+split around the "=====" line.&nbsp;
+(There shouldn't be any Caucus-related processes running after
+the split.&nbsp;
+If there are, try it again, or kill remaining processes
+manually.)
+
+<p/>
+<li><b>Dump the MySQL database.</b>
+Starting in the home directory of the 'caucus' userid:
+<pre>
+   mysqldump -u caucus -p caucus_caucus >caucus_caucus.sql
+</pre>
+
+<p/>
+<li><b>Archive the entire site.</b>
+Starting in the home directory of the 'caucus' userid:
+<pre>
+   rm -rf SOCKET
+   tar cvf /tmp/caucus.tar *
+   gzip    /tmp/caucus.tar
+</pre>
+
+
+   
+</pre>
 </ol>
 
 
