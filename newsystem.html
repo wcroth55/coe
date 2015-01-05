@@ -763,7 +763,7 @@ The instructions below assume that the Caucus userid is 'caucus'
 and the database is called 'caucus_caucus'.&nbsp;
 Modify accordingly.
 <ol>
-<li><b>Stop old site</b>.&nbsp;  E.g.  on the old site, for site 'caucus', do:
+<li><b>Stop old site processes</b>.&nbsp;  E.g.  on the old site, for site 'caucus', do:
 <pre>
    su - caucus
    crontab -r
@@ -773,7 +773,7 @@ Modify accordingly.
 
    ps x | grep -e swebs -e "swebd " -e java | grep -v grep | \
    (while read a b; do
-       echo kill -1 $a
+       kill -1 $a
     done)
 
    ps x
@@ -784,6 +784,10 @@ split around the "=====" line.&nbsp;
 the split.&nbsp;
 If there are, try it again, or kill remaining processes
 manually.)
+
+<p/>
+<li><b>Change DNS.</b>&nbsp;
+Change the DNS entry for the site to point to the new server.
 
 <p/>
 <li><b>Dump the MySQL database.</b>
@@ -801,6 +805,52 @@ Starting in the home directory of the 'caucus' userid:
    gzip    /tmp/caucus.tar
 </pre>
 
+<p/>
+<li><b>Transfer to the new server.</b>&nbsp;
+Typically, this means scp the /tmp/caucus.tar.gz file to somewhere on the new server.&nbsp;
+If you are "pushing" it from the old server to the new server, you will also need
+to open the firewall on the new server (to allow access from the old server) for port 22
+first.
+
+<p/>
+<li><b>Create empty site on the new server.</b>&nbsp;
+Go through the usual procedure of creating an empty Caucus site,
+on the new server.&nbsp;
+Use the <b>same</b> name as the old site on the old server.&nbsp;
+Make sure it works.
+<p/>
+Then make sure to <b>shut it down</b> (see VIII.1 again.)
+
+<p/>
+<li><b>Overlay the new (empty) site</b> with the old data.&nbsp;
+Assuming that the old data has been placed in /tmp/oldcaucus.tar.gz, 
+as the new 'caucus' user on the new server do:
+<pre>
+   tar xvfz /tmp/oldcaucus.tar.gz
+   mysql -u caucus -p caucus_caucus -e "source caucus_caucus.sql;"
+</pre>
+
+<p/>
+<li><b>'Update' the site from the new kit.</b>&nbsp;
+IOW, "re-install" Caucus over top of the old data.&nbsp;  E.g.
+<pre>
+   tar xvf whereverTheNewKitIs.tar  <i>(see IV.5)</i>
+   ./install                        <i>(answer all the re-install questions)</i>
+
+   cd SWEB
+   ./swebd ./swebd.conf             <i>(Restart the site)</i>
+</pre>
+
+<p/>
+<li><b>Clean up.</b>&nbsp; On the new server:
+<pre>
+   rm -f /home/caucus/caucus_caucus.sql
+   rm -f /tmp/oldcaucus.tar.gz
+</pre>
+
+<p/>
+Check the output of 'crontab -l' for the moved site, 
+and make sure it does what you expect it to do.
 
    
 </pre>
@@ -808,11 +858,11 @@ Starting in the home directory of the 'caucus' userid:
 
 
 <p/>
-<b>VIII. Next?</b>
+<b>IX. Next?</b>
 <ol>
+<li>Backups!&nbsp;
+  (Everything outside of the MySQL data, that is.)
 <li>Docker?
-<li>Backups?
-<li>How-To move an existing Caucus site (easy)
 <li>...?
 </ol>
 
