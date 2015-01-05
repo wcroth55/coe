@@ -852,8 +852,19 @@ IOW, "re-install" Caucus over top of the old data.&nbsp;  E.g.
 Check the output of 'crontab -l' for the moved site, 
 and make sure it does what you expect it to do.
 
-   
+<p/>
+<li><b>Start site at boot.</b>&nbsp;
+Follow the usual directions to start the Caucus site at boot-time, e.g.
+edit /etc/rc.d/rc.local and add:
+<pre>
+   rm -f /home/caucus/SOCKET/sweb /home/caucus/SOCKET/sweb0*
+   /home/caucus/SWEB/swebd /home/caucus/SWEB/swebd.conf
 </pre>
+
+(Also <b>remove</b> the equivalent lines from the old server!)
+
+
+   
 </ol>
 
 
