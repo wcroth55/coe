@@ -542,6 +542,9 @@ substituting in the appropriate values for the underlined text:
    #canonical_maps = hash:/etc/postfix/sender_canonical
 </pre>
 
+<b>Note:</b> configuration lines for main.cf <b>must not</b> indented.&nbsp;
+That has a special meaning to postfix (it's a kind of continuation line).
+
 <p/>
 Then restart Postfix:
 <pre>
@@ -559,6 +562,10 @@ Then restart the firewall.&nbsp; As root, run:
 <pre>
    firewall
 </pre>
+
+<p/>
+<li><b>Test it!</b>&nbsp;
+Make sure you can send email from root.
 
 
 </ol>
@@ -862,17 +869,147 @@ edit /etc/rc.d/rc.local and add:
 </pre>
 
 (Also <b>remove</b> the equivalent lines from the old server!)
+</ol>
+
+<p/>
+<b>IX. Rsync file backup</b><br/>
+In addition to the automatic backup of the MySQL data via replication,
+the slave (aka "failover") server should also have regular backups
+of all other relevant files, notably including:
+<ul>
+<li>Uploaded/attached files in Caucus.
+<li>Separate 'static' web sites.
+<li>Any other files that you would need to properly "fail over" to the slave
+   in the event that the master died.
+</ul>
+
+<p/>
+The wonderful thing about rsync is that it is smart enough to copy only
+the new files, the <b>changed</b> files (and <b>changed parts</b> of those files) over.&nbsp;
+So it uses very near the theoretical minimum bandwidth to do the 
+synchronization.
+<p/>
+The steps are:
+
+<ol>
+<li><b>Open firewall</b>, on the slave, <b>to</b> the master.&nbsp;
+Look up the master's IP address, and add it to the slave's /usr/local/bin/firewallRules.txt.
+<p/>
+E.g. for master p7 and slave p8, on p8 do:
+<pre>
+   nslookup
+   p7.coexploration.org
+   ^C                       <i>(control-C)</i>
+</pre>
+Edit the firewallRules.txt, add 
+<pre>
+   P7 is <i>(IP address from previous step)</i>
+   P7 gets 22
+</pre>
+
+Then run 'firewall'.
+
+<p/>
+<li><b>Provide for password-less ssh login from master to slave</b>.&nbsp;
+<p/>
+On the master, look for /root/.ssh/id_rsa.pub.&nbsp;
+If it does not exist, do:
+<pre>
+   ssh-keygen -b 1024 -t rsa
+</pre>
+and just press Enter at all the prompts.
+
+<p/>
+Then append the contents of that file on the master,
+<b>to</b> the end of the file /root/.ssh/authorized_keys2 on the slave.&nbsp;
+If the .ssh directory doesn't exist, do:
+<pre>
+   mkdir     /root/.ssh
+   chmod 700 /root/.ssh
+</pre>
+
+If the file authorized_keys2 doesn't exist, just copy the id_rsa.pub file to authorized_keys2.
+
+<p/>
+Check that it works.&nbsp;
+From the master, you should be able to do
+<pre>
+   ssh root@slavehostname.org
+</pre>
+and get a login prompt, <b>without</b> entering a password.
+
+<p/>
+<li><b>Install the backup script.</b>&nbsp;
+Copy the file backupToSlave.sh from the COE repository to /root on the master.&nbsp;
+Make sure it is executable, e.g.
+<pre>
+   chmod 700 /root/backupToSlave.sh
+</pre>
+
+Edit the file so that the symbols 'master' and 'idhost' are correct.
+<p/>
+Set the file to run (at least) once a day, via crontab on the master.&nbsp;
+I like to do this via a file, e.g:
+<pre>
+   crontab -l >crontab_file
+   <i>(edit crontab_file until it's right)</i>
+   crontab crontab_file
+</pre>
+
+The crontab entry for the backup script would look something like:
+<pre>
+   10 3 * * * /root/backupToSlave.sh
+</pre>
+(which runs at 10 minutes after 3 am, every day)
+
+<p/>
+<li><b>Prepare the slave.</b>&nbsp;  On the slave, do:
+<pre>
+   mkdir /root/p7     <i>(or whatever value you have for 'master' in the backup script)</i>
+   mkdir /root/p7/usr
+   mkdir /root/p7/usr/local
+   mkdir /root/p7/usr/local/bin
+</pre>
+
+<p/>
+<li><b>Test the backups.</b>&nbsp;
+Make sure that the backup script is run from cron.&nbsp;
+Then later that day, on the slave, examine the contents of (say) /root/p7 to see if
+it has the contents you expect.&nbsp;
+<p/>
+Also look on the master, in /tmp, 
+for a file named "backup" with the date and time of the expected backup as part of the name.&nbsp;
+It should contain a list of the files that were transferred, as well as the starting and ending
+time of the backup process.
+
+<p/>
+<li><b>Using the backups.</b>&nbsp;
+If you ever need the backups, most of the work can be achieved by simply moving the
+appropriate contents over, e.g.
+<pre>
+   mv /root/p7/home/* /home
+   cp /root/p7/usr/local/bin/* /usr/local/bin
+</pre>
+
+You may need to create userids on the slave to match those that were on
+the master: examine /root/p7/etc/passwd to see the list of ids that
+were on the master.
+
+<p/>
+Similarly, you may need the httpd configuration files from /root/p7/etc/httpd/conf
+and /root/p7/etc/httpd/conf/vhosts copied, and lightly edited (e.g. to put in the
+correct IP address) into the equivalent locations on the slave.
+ 
 
 
-   
+
 </ol>
 
 
+
 <p/>
-<b>IX. Next?</b>
+<b>X. Next?</b>
 <ol>
-<li>Backups!&nbsp;
-  (Everything outside of the MySQL data, that is.)
 <li>Docker?
 <li>...?
 </ol>
