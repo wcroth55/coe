@@ -1006,6 +1006,89 @@ correct IP address) into the equivalent locations on the slave.
 </ol>
 
 
+<p/>
+<b>X. WordPress Updates and FTP</b><br/>
+
+WordPress has a, shall we say, pesky but useful auto-update mechanism.&nbsp;
+In order to allow the auto-update to work, one must enable an FTP server,
+and (briefly) open the firewall.
+
+<p/>
+The directions below enable this for a single user 'wp'.&nbsp;
+Adapt accordingly.&nbsp;
+All instructions are done as root.
+
+<ol>
+<li><b>Install and configure FTP server</b>.&nbsp; Do this <b>once</b>:
+<pre>
+   yum install vsftpd.x86_64
+</pre>
+
+Edit /etc/vsftpd/vsftpd.conf, and edit it so that you have:
+<pre>
+   anonymous_enable=NO
+   local_enable=YES
+   write_enable=YES
+   userlist_deny=NO
+   userlist_file=/etc/vsftpd/allowed_users
+</pre>
+
+Then create a file /etc/vsftpd/allowed_users, containing just the one allowed userid 'wp':
+<pre>
+   wp
+</pre>
+
+<li><b>Create a script to turn off the firewall.</b>&nbsp;
+E.g. create a file /usr/local/bin/firewallOff, containing:
+<pre>
+   #!/bin/sh
+   
+   modprobe ip_tables
+   modprobe ip_conntrack
+   modprobe ip_conntrack_ftp
+   
+   iptables --flush
+   iptables --delete-chain
+   
+   iptables -P INPUT   ACCEPT
+   iptables -P FORWARD ACCEPT
+   iptables -P OUTPUT  ACCEPT
+</pre>
+
+Make it executable by root:
+<pre>
+   chmod 700 /usr/local/bin/firewallOff
+</pre>
+
+<li><b>Run vsftpd</b> when you actually need to do the WordPress update.&nbsp;
+<pre>
+   firewallOff
+   vsftpd
+</pre>
+
+<li><b>Do the WordPress update.</b>
+
+<li><b>Restore the firewall, and stop vsftpd</b>.
+<pre>
+   firewall
+   ps -ef | grep vsftpd | grep -v grep
+</pre>
+
+And kill each process that it shows.&nbsp;
+E.g. if it shows the following:
+<pre>
+   root     28413     1  0 16:44 ?        00:00:00 vsftpd
+</pre>
+
+Then do:
+<pre>
+   kill -9 28413
+</pre>
+</ol>
+
+
+
+
 
 <p/>
 <b>X. Next?</b>
