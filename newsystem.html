@@ -16,7 +16,7 @@
 Charles Roth<br/>
 Last update: 2014-12-12
 
-<p/><b>I. Introduction</b><br>
+<p/><a name="intro"><b>I. Introduction</b></a><br>
 This document 
 describes specific steps taken to set up a new RHEL (Red Hat Enterprise Linux, 
 or CentOS) version 6 server(s) from ServerBeach.&nbsp;
@@ -24,10 +24,26 @@ Basically, this is just a record of what we do to change the base
 configuration of the server as provided by ServerBeach.
 
 <p/>
+<b>Table of Contents</b>
+<ol type="I">
+<li><a href="#intro">Introduction</a>
+<li><a href="#server">Basic Server Configuration</a>
+<li><a href="#install">Install software needed to build and run Caucus</a>
+<li><a href="#build">Build and Test Caucus</a>
+<li><a href="#av">Antivirus</a>
+<li><a href="#email">Configure Email</a>
+<li><a href="#repl">MySQL Replication</a>
+<li><a href="#move">How to move an existing Caucus site</a>
+<li><a href="#rsync">Rsync file backup</a>
+<li><a href="#wordpressupdate">WordPress Updates and FTP</a>
+</ol>
+
+
+<p/>
 This is a work-in-progress; check the "last update" data at the top for new versions.
 
 <p/>
-<b>II. Basic Server Configuration</b><br/>
+<a name="server"><b>II. Basic Server Configuration</b></a><br/>
 <ol>
   <li><b>Domain name</b>
   <ol type="a">
@@ -241,7 +257,7 @@ And (of course), add the mount command to /etc/rc.d/rc.local:
 </ol>
 
 <p/>
-<b>III. Install software needed to build and run Caucus</b>.
+<a name="install"><b>III. Install software needed to build and run Caucus</b></a>.
 
 <ol>
 <li><b>MySQL</b>.&nbsp;
@@ -308,7 +324,7 @@ Start MySQL at boot: edit /etc/rc.d/rc.local, and add
 
 </ol>
 
-<b>IV. Build and Test Caucus</b>
+<a name="build"><b>IV. Build and Test Caucus</b></a>
 <ol>
 <li>Make a userid to test in, e.g.
 <pre>
@@ -413,7 +429,7 @@ For example:
 </ol>
 
 <p/>
-<b>V. Antivirus</b>
+<a name="av"><b>V. Antivirus</b></a>
 The primary purpose of the antivirus software is to detect
 virus-laden software that is uploaded by users <b>into</b>
 Caucus.
@@ -504,7 +520,7 @@ Copy the 'viruschecker' file from the COE git repository, to /usr/local/bin.
 </ol>
 
 <p/>
-<b>VI. Configure Email</b>
+<a name="email"><b>VI. Configure Email</b></a>
 <ol>
 <li>Create a new userid 'mailhandler', e.g. something like:
 <pre>
@@ -573,7 +589,7 @@ Make sure you can send email from root.
 
 
 <p/>
-<b>VII. MySQL Replication</b><br/>
+<a name="repl"><b>VII. MySQL Replication</b></a><br/>
 This section assumes that we have two servers in play: server A, which will
 be the master, and server B, which is (mostly) used as a failover server
 in case A should die or become unavailable.
@@ -760,16 +776,31 @@ But multiple failures in a row are worth investigating.
 </ol>
 
 <p/>
-<b>VIII. How to move an existing Caucus site</b><br/>
+<a name="move"><b>VIII. How to move an existing Caucus site</b></a><br/>
 In order to move an existing site, you will have to shut it down
 for a period of time, depending on the size of the site.&nbsp;
 Generally it's best to allow a couple of hours.
+
+<p/>
+If this is a large site that may take many hours to move,
+read section VIII.5.b first -- you can speed up the 
+time to move the site by preparing it with 'rsync' first.
 
 <p/>
 The instructions below assume that the Caucus userid is 'caucus'
 and the database is called 'caucus_caucus'.&nbsp;
 Modify accordingly.
 <ol>
+
+<p/>
+<li><b>Create empty site on the new server.</b>&nbsp;
+Go through the usual procedure of creating an empty Caucus site,
+on the new server.&nbsp;
+Use the <b>same</b> name as the old site on the old server.&nbsp;
+Make sure it works.
+<p/>
+Then make sure to <b>shut it down</b> (see VIII.1 again.)
+
 <li><b>Stop old site processes</b>.&nbsp;  E.g.  on the old site, for site 'caucus', do:
 <pre>
    su - caucus
@@ -796,6 +827,7 @@ manually.)
 <li><b>Change DNS.</b>&nbsp;
 Change the DNS entry for the site to point to the new server.
 
+
 <p/>
 <li><b>Dump the MySQL database.</b>
 Starting in the home directory of the 'caucus' userid:
@@ -804,36 +836,68 @@ Starting in the home directory of the 'caucus' userid:
 </pre>
 
 <p/>
-<li><b>Archive the entire site.</b>
-Starting in the home directory of the 'caucus' userid:
+<li><b>Transfer the entire site.</b>
+Start by removing unused files:
 <pre>
    rm -rf SOCKET
+   rm -f TEMP/* TMP/*
+</pre>
+
+You can either transfer the site manually, or use 'rsync' to 
+do it for you.&nbsp;
+The manual approach is simplest for a small site; 
+the rsync is better for a large site that may take a long
+time to move.
+
+<ol type="a">
+<li><b>Manual approach</b>.&nbsp;
+Starting in the home directory of the 'caucus' userid:
+<pre>
    tar cvf /tmp/caucus.tar *
    gzip    /tmp/caucus.tar
 </pre>
 
+Now scp the /tmp/caucus.tar.gz file to the new server.&nbsp;
+Typically this means you will need to
+open the firewall on the new server (to allow access from the old server) for port 22 first.
+
+<li><b>Rsync</b>.&nbsp;
+In this approach, you gradually synchronize the files in 
+the caucus site on the old server, to the proper locaation on the new server.&nbsp;
+This can be done even while the old server is still running Caucus,
+and then done one final time once you stop the old server.
 <p/>
-<li><b>Transfer to the new server.</b>&nbsp;
-Typically, this means scp the /tmp/caucus.tar.gz file to somewhere on the new server.&nbsp;
-If you are "pushing" it from the old server to the new server, you will also need
-to open the firewall on the new server (to allow access from the old server) for port 22
-first.
+
+Assuming that 
+<ul>
+<li>You're logged in as root on the old server
+<li>That the userid is called "caucus" on both old and new servers
+<li>That the firewall on the new server allows incoming port 22 access from the old server
+<li>That /home/caucus has already been created on the new server
+</ul>
 
 <p/>
-<li><b>Create empty site on the new server.</b>&nbsp;
-Go through the usual procedure of creating an empty Caucus site,
-on the new server.&nbsp;
-Use the <b>same</b> name as the old site on the old server.&nbsp;
-Make sure it works.
-<p/>
-Then make sure to <b>shut it down</b> (see VIII.1 again.)
+Then the following commands would synchronize the files from the old
+to the new server:
+
+<pre>
+   su - caucus
+   nice rsync -L -av -e ssh --delete * caucus@newserver.com:/home/caucus >/tmp/rsync.log &
+</pre>
+
+It will log the list of files that were copied, in /tmp/rsync.log.&nbsp;
+This process can be repeated as many times as needed; rsync is <b>very</b> good about
+detecting only what has changed on the old server, and copying that over.&nbsp;
+It can even be interrupted and started again, with no loss or error.
+</ol>
 
 <p/>
 <li><b>Overlay the new (empty) site</b> with the old data.&nbsp;
+<br/>
 Assuming that the old data has been placed in /tmp/oldcaucus.tar.gz, 
 as the new 'caucus' user on the new server do:
 <pre>
-   tar xvfz /tmp/oldcaucus.tar.gz
+   tar xvfz /tmp/oldcaucus.tar.gz      <i>(Skip this step if you've used the rsync method above.)</i>
    mysql -u caucus -p caucus_caucus -e "source caucus_caucus.sql;"
 </pre>
 
@@ -872,7 +936,7 @@ edit /etc/rc.d/rc.local and add:
 </ol>
 
 <p/>
-<b>IX. Rsync file backup</b><br/>
+<a name="rsync"><b>IX. Rsync file backup</b></a><br/>
 In addition to the automatic backup of the MySQL data via replication,
 the slave (aka "failover") server should also have regular backups
 of all other relevant files, notably including:
@@ -1007,7 +1071,7 @@ correct IP address) into the equivalent locations on the slave.
 
 
 <p/>
-<b>X. WordPress Updates and FTP</b><br/>
+<a name="wordpressupdate"><b>X. WordPress Updates and FTP</b></a><br/>
 
 WordPress has a, shall we say, pesky but useful auto-update mechanism.&nbsp;
 In order to allow the auto-update to work, one must enable an FTP server,
@@ -1095,7 +1159,7 @@ Then do:
 
 
 <p/>
-<b>X. Next?</b>
+<b>XI. Next?</b>
 <ol>
 <li>Docker?
 <li>...?
