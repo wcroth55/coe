@@ -35,7 +35,7 @@ configuration of the server as provided by ServerBeach.
 <li><a href="#repl">MySQL Replication</a>
 <li><a href="#move">How to move an existing Caucus site</a>
 <li><a href="#rsync">Rsync file backup</a>
-<li><a href="#wordpressupdate">WordPress Updates and FTP</a>
+<li><a href="#wordpress">WordPress Support</a>
 </ol>
 
 
@@ -1071,8 +1071,20 @@ correct IP address) into the equivalent locations on the slave.
 
 
 <p/>
-<a name="wordpressupdate"><b>X. WordPress Updates and FTP</b></a><br/>
+<a name="wordpress"><b>X. WordPress Support</b></a><br/>
+This section is not directly related to Caucus or the backup/failover mechanisms.&nbsp;
+But it is a place to record useful configuration information about WordPress.
 
+<ol>
+<li><b>Install PHP</b>.&nbsp; As root, do:
+<pre>
+   yum install php.x86_64
+   yum install php-gd.x86_64
+   service httpd restart
+</pre>
+
+
+<li><b>WordPress updates</b>.&nbsp;
 WordPress has a, shall we say, pesky but useful auto-update mechanism.&nbsp;
 In order to allow the auto-update to work, one must enable an FTP server,
 and (briefly) open the firewall.
@@ -1082,10 +1094,10 @@ The directions below enable this for a single user 'wp'.&nbsp;
 Adapt accordingly.&nbsp;
 All instructions are done as root.
 
-<ol>
+<ol type="a">
 <li><b>Install and configure FTP server</b>.&nbsp; Do this <b>once</b>:
 <pre>
-   yum install vsftpd.x86_64
+    yum install vsftpd.x86_64
 </pre>
 
 Edit /etc/vsftpd/vsftpd.conf, and edit it so that you have:
@@ -1152,6 +1164,8 @@ Then do:
 <pre>
    kill -9 28413
 </pre>
+</ol>
+
 </ol>
 
 
