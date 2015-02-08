@@ -882,7 +882,7 @@ to the new server:
 
 <pre>
    su - caucus
-   nice rsync -L -av -e ssh --delete * caucus@newserver.com:/home/caucus >/tmp/rsync.log &
+   nice rsync -avz -e ssh --delete * caucus@newserver.com:/home/caucus >/tmp/rsync.log &
 </pre>
 
 It will log the list of files that were copied, in /tmp/rsync.log.&nbsp;
