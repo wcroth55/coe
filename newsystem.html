@@ -1081,7 +1081,11 @@ But it is a place to record useful configuration information about WordPress.
    yum install php.x86_64
    yum install php-gd.x86_64
    yum install php-mysql.x86_64
+</pre>
 
+Edit /etc/php.ini, and change upload_max_filesize to something large, say 2G.
+
+<pre>
    service httpd restart
 </pre>
 
@@ -1167,7 +1171,7 @@ Continue with the install.
 <li><b>Fill in Site info</b>.&nbsp;
 Fill in the initial site info, admin user, password, and email.&nbsp;
 These can all be changed later.
-   
+
 </ol>
 
 
@@ -1252,6 +1256,29 @@ Then do:
 <pre>
    kill -9 28413
 </pre>
+
+</ol>
+
+<li><b>WordPress Themes</b>.&nbsp;
+WordPress has a bizarre security model.&nbsp;
+In order to install new themes, several things have to be turned off (and then on again aftewards).
+
+<ol type="a">
+<li>Make the upload directory writeable by the web server.&nbsp;
+For WordPress installed in /home/wp, do:
+<pre>
+   chmod 777 /home/wp/wordpress/wp-content
+</pre>
+
+<li>Set up the FTP server, as in X.3.a.
+<li>Open the firewall (shudder), as in X.3.b and X.3.c.
+<li>Install the new theme via the WordPress interface.
+<li>Close the firewall and stop FTP, as in X.3.e.
+<li>Restore the file permissions:
+<pre>
+   chmod 755 /home/wp/wordpress/wp-content
+</pre>
+
 </ol>
 
 </ol>
