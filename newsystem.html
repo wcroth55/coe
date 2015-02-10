@@ -14,7 +14,7 @@
 
 <h2>Configuring a new COE RHEL/CentOS 6 linux system</h2>
 Charles Roth<br/>
-Last update: 2014-12-12
+Last update: 2015-02-09
 
 <p/><a name="intro"><b>I. Introduction</b></a><br>
 This document 
@@ -1080,10 +1080,98 @@ But it is a place to record useful configuration information about WordPress.
 <pre>
    yum install php.x86_64
    yum install php-gd.x86_64
+   yum install php-mysql.x86_64
+
    service httpd restart
 </pre>
 
+<li><b>Install WordPress</b>.&nbsp;
+A server may have multiple, separate, installations of WordPress.&nbsp;
+Follow these steps to install a single instance.
 
+<ol type="a">
+<li>Create a new user, e.g. "events".&nbsp; As root:
+<pre>
+   useradd -u <i>nnnnn</i> -d /home/events events   (where '<i>nnnnn</i>' is an unused number in /etc/passwd)
+   passwd events
+   su - events
+   chmod 711 .
+</pre>
+
+<li><b>Download and install</b> the WordPress software (from 
+<a href="http://codex.wordpress.org/Installing_WordPress"
+  >codex.wordpress.org/Installing_WordPress</a>).&nbsp;
+Once you get the file (typically called something like wordpress-4.1.tar.gz),
+unpack it in the 'events' userid:
+<pre>
+   su - events      <i>(if you're not already logged in as 'events')</i>
+   tar xvfz /whereverthefileis/wordpress-4.1.tar.gz
+</pre>
+
+<li><b>Define the DNS.</b>&nbsp;
+E.g. change the DNS server so that (say) events.coexploration.org points to the IP
+address of the new server.
+
+<li><b>Define the HTTP record</b>.&nbsp; For example, create /etc/httpd/conf/vhosts,
+containing:
+<pre>
+   &lt;VirtualHost 66.135.33.165&gt;
+      ServerName     events.coexploration.org
+      DocumentRoot /home/events/wordpress
+   &lt;/VirtualHost&gt;
+</pre>
+and then (as root) restart httpd, e.g.
+<pre>
+   service httpd restart
+</pre>
+
+<li><b>Create the database</b>.&nbsp; I recommend following a standard pattern,
+modelled after the Caucus approach.&nbsp;
+E.g. prepend "wp_" to the name of the site (in this case "events").&nbsp;
+<pre>
+   mysql -u root -p
+   create database wp_events;
+   grant all on wp_events.* to wp_events@localhost identified by 'somePassword';
+   flush privilegs;
+   quit;
+</pre>
+
+<li><b>Run WordPress installer</b>.&nbsp;
+Point your browser at (for example) http://events.coexploration.org/wp-admin/setup-config.php.&nbsp;
+<table border="1">
+<tr><td>Database Name&nbsp;&nbsp;</td>
+
+<td>wp_events</td>
+<tr><td>User Name</td>
+<td>wp_events</td>
+
+<tr><td>Password</td>
+<td><i>(whatever you used above)</i></td>
+
+<tr><td>Database Host</td>
+<td>localhost</td>
+
+<tr><td>Table Prefix</td>
+<td>_</td>  <td><i>(Yes, really just an underscore)</i></td>
+</table>
+
+<li><b>Create wp-config.php</b>.&nbsp;
+The installer will complain that it can't write wp-config.php.&nbsp;
+This is good!
+
+<p/>
+Manually cut-and-paste the text it offers you into (for example)
+/home/events/wordpress/wp-config.php.&nbsp;
+Continue with the install.
+
+<li><b>Fill in Site info</b>.&nbsp;
+Fill in the initial site info, admin user, password, and email.&nbsp;
+These can all be changed later.
+   
+</ol>
+
+
+<p/>
 <li><b>WordPress updates</b>.&nbsp;
 WordPress has a, shall we say, pesky but useful auto-update mechanism.&nbsp;
 In order to allow the auto-update to work, one must enable an FTP server,
