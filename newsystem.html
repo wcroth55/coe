@@ -882,11 +882,16 @@ to the new server:
 
 <pre>
    su - caucus
-   nice rsync -avz -e ssh --delete * caucus@newserver.com:/home/caucus >/tmp/rsync.log &
+   nice rsync -avz -e ssh --delete * caucus@newserver.com:/home/caucus >/tmp/rsync.log
 </pre>
 
 It will log the list of files that were copied, in /tmp/rsync.log.&nbsp;
-This process can be repeated as many times as needed; rsync is <b>very</b> good about
+If you want to run this in the background, wait a few seconds until you know it is running,
+then press ctrl-Z, and type "bg %1".&nbsp;
+Then you can run other commands <b>while</b> this is running.
+
+<p/>
+The rsync process can be repeated, later, as many times as needed; rsync is <b>very</b> good about
 detecting only what has changed on the old server, and copying that over.&nbsp;
 It can even be interrupted and started again, with no loss or error.
 </ol>
