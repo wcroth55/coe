@@ -1,0 +1,1293 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
+  <title>Configuring a new COE RHEL/CentOS 7 (Linode) linux system</title>
+  <style type="text/css">
+     body,td { font-family: arial;  font-size: 80%; }
+     tt,pre { font-size: 120%; }
+     
+     LI { margin-top: .8em; }
+  </style>
+</head>
+<body>
+
+<h2>Configuring a new COE RHEL/CentOS 7 (Linode) linux system</h2>
+Charles Roth<br/>
+Last update: 2017-02-11
+
+<p/><a name="intro"><b>I. Introduction</b></a><br>
+This document 
+describes specific steps taken to set up a new RHEL (Red Hat Enterprise Linux, 
+or CentOS) version 7 server(s) from ServerBeach.&nbsp;
+Basically, this is just a record of what we do to change the base 
+configuration of the server as provided by Linode/CentOS.
+
+<p/>
+<b>Table of Contents</b>
+<ol type="I">
+<li><a href="#intro">Introduction</a>
+<li><a href="#server">Basic Server Configuration</a>
+<li><a href="#install">Install software needed to build and run Caucus</a>
+<li><a href="#build">Build and Test Caucus</a>
+<li><a href="#av">Antivirus</a>
+<li><a href="#email">Configure Email</a>
+<li><a href="#repl">MySQL Replication</a>
+<li><a href="#move">How to move an existing Caucus site</a>
+<li><a href="#rsync">Rsync file backup</a>
+<li><a href="#wordpress">WordPress Support</a>
+</ol>
+
+
+<p/>
+This is a work-in-progress; check the "last update" data at the top for new versions.
+
+<p/>
+<a name="server"><b>II. Basic Server Configuration</b></a><br/>
+<ol>
+  <li><b>Domain name</b>
+  <ol type="a">
+     <li>Add domain name for new server to our existing DNS records.
+      <p/>
+      Currently, these are maintained by Charles, and are spread
+       across 3 different DNS servers around the country.&nbsp;
+      (ns1.screenporch.com, ns2.screenporch.com, ns3.screenporch.com.)&nbsp;
+      The advantage with this approach is that we can change DNS
+      resolution for a server very quickly if we need to migrate to a failover server.&nbsp;
+      (Commercial DNS services tend to not be able to react as quickly.)
+
+      <p/>
+      The disadvantage is, Charles is an individual, with no other
+      support behind him.
+
+      <p/>
+      Another option would be to provide Scott(?) with direct access
+      to the master DNS server, and appropriate training, if needed.
+     </li>
+
+     <li>Set reverse DNS:
+      <ol type="i">
+         <li>Select the Linode you wish to set up reverse DNS for from your Linodes tab.
+         <li>Click the Remote Access tab.
+         <li>Select the Reverse DNS link:
+         <li>Enter your Linode's fully qualified domain name in the Hostname field:
+         <li>Click Look up. ...
+      </ol>
+   </ol>
+
+
+<p/>
+   
+  <li><b>Root login</b>.&nbsp;
+   <ol type="a">
+   <li>Edit /etc/ssh/sshd_config, make sure it is using "Protocol 2", and 
+      "PermitRootLogin yes".&nbsp; If you changed anything, restart sshd with:
+      <ul>
+      <table>
+      <tr><td><tt>ps -ef | grep "/usr/sbin/sshd"&nbsp;&nbsp;&nbsp;</tt></td>   <td>(to find the process id <i>nnnnn</i> of sshd)</td>
+      <tr><td><tt>kill -1 <i>nnnnn</i></td>   <td>(to restart sshd)</td>
+      </table>
+      </ul>
+
+    <p/>
+    <li>Change the root password.
+
+    <p/>
+    <li>Edit /root/.bash_profile, add this line to the bottom:
+<pre>
+   export PS1='p7:$PWD # '
+</pre>
+   where p7 is the short name of the new box.&nbsp;
+   Logout and log back in.
+
+<p/>
+   <li>Create /root/.forward, and make it contain the addresses
+   that 'root' email should go to, e.g.
+<pre>
+   croth@thedance.net,scott.tudd@gmail.com
+</pre>
+
+<p/>
+<li>Create ssh key:
+<pre>
+   mkdir .ssh
+   chmod 700 .ssh
+   ssh-keygen -b 1024 -t rsa
+</ol>
+(press Enter at all the prompts)
+
+<p/>
+<li><b>Install git</b>.&nbsp; As root,
+<pre>
+   yum install git
+</pre>
+
+<p/>
+<li><b>Set up Iptables firewall</b>.&nbsp;
+<ol type="a">
+<li>As root, check out the COE scripts repository, 
+and copy the firewall scripts to /usr/local/bin:
+<pre>
+   git clone git@github.com:wcroth55/coe.git COE
+   cp COE/firewall          /usr/local/bin
+   cp COE/firewallRules.txt /usr/local/bin
+   chmod 700                /usr/local/bin/firewall*
+</pre>
+(If the checkout does not work, ask Charles to add the contents  of .ssh/id_rsa.pub to
+the list of ssh keys for the COE project.&nbsp;
+Or just check out the project to your laptop, and copy the firewall files over
+manually.)
+
+<li>Edit /usr/local/bin/firewallRules.txt to
+assign roles and IP addresses as appropriate.&nbsp;
+See the comments at the top of the file for details.&nbsp;
+
+<p/>
+<li>Edit /etc/rc.d/rc.local, and add the following line to the bottom:
+<pre>
+   /usr/local/bin/firewall
+</pre>
+
+This will ensure the firewall gets turned on when the server reboots.
+
+<p/>
+<b>Note:</b> make sure to do:
+<pre>
+   chmod 755 /etc/rc.d/rc/local
+</pre>
+
+<p/>
+<li>
+<b>Important: turn on the firewall now!</b>&nbsp;
+As root, just type:
+<pre>
+   firewall
+</pre>
+</ol>
+
+<p/>
+<li><b>Update all installed software</b>.&nbsp;
+As root, do:
+<pre>
+   yum update
+</pre>
+and answer "yes" or the equivalent to all questions.
+
+
+<p/>
+<li><b>Time</b>
+<ol type="a">
+<li>Set time zone to Eastern US:
+<pre>
+   rm -f /etc/localtime
+   ln -s /usr/share/zoneinfo/America/New_York /etc/localtime
+</pre>
+
+<p/>
+<li>Enable ntpd time correction:  <b>(not working yet)</b>
+<pre>
+   service ntpd start
+</pre>
+
+Edit /etc/rc.d/rc.local, and add the line:
+<pre>
+   /usr/sbin/service ntpd start
+</pre>
+
+</ol>
+
+<p/>
+<li><b>Web server</b>
+  <ol type="a">
+  <li>Install:
+<pre>
+   yum install bind-utils.x86_64
+   yum install httpd.x86_64
+</pre>
+
+  <p/>
+  <li>Make configuration changes.
+   <ol type="i">
+   <li>Copy local.conf from the git COE checkout, to /etc/httpd/conf.
+   <li>Edit local.conf to put in correct ServerAdmin, ServerName, NameVirtualHost IP address.
+   <li>Edit /etc/httpd/conf/httpd.conf:<br/>
+      Comment out "AddDefaultCharset UTF-8"<br/>
+      Add "Include conf/local.conf" (to the very end)<br/>
+   <li>Edit /etc/httpd/conf.d/userdir.conf,
+      comment out "UserDir disabled", uncomment the public_html line.
+   </ol>
+
+   <li><tt>mkdir /etc/httpd/conf/vhosts</tt>
+ 
+   <li>Edit /etc/rc.d/rc.local, add
+<pre>
+   /usr/sbin/service httpd start
+</pre>
+
+   <li>Start web server:
+<pre>
+   service httpd start
+</pre>
+
+  </ol>
+
+  <p/>
+
+</ol>
+
+<p/>
+<a name="install"><b>III. Install software needed to build and run Caucus</b></a>.
+
+<ol>
+<li><b>MySQL</b>.&nbsp;
+
+<pre>
+   yum install mariadb
+   yum install mariadb-server.x86_64
+   yum install mariadb-devel.x86_64
+   yum install telnet    <i>(this is just the client, not the telnet server)</i>
+</pre>
+(There's additional information at 
+<a href="https://www.linode.com/docs/databases/mariadb/how-to-install-mariadb-on-centos-7"
+   >www.linode.com/docs/databases/mariadb/how-to-install-mariadb-on-centos-7</a>.
+
+<p/>
+Edit /etc/my.cnf, and (before the [mysqld_safe] section),
+add these lines to make MySQL use a larger share of RAM:
+<pre>
+   #---Optimization changes
+   innodb_buffer_pool_size = 4000M
+
+<!--
+   innodb_log_file_size = 100M
+   innodb_flush_method = O_DIRECT
+   innodb_flush_log_at_trx_commit = 2
+   table_cache = 8192
+   open_files_limit = 8192
+   innodb_support_xa = off
+   max_connections=500
+-->
+</pre>
+
+Then continue with starting and initializing MySQL:
+
+<pre>
+   service mariadb start
+   mysql_secure_installation
+</pre>
+and answer Y to all of the questions.
+<p/>
+Verify that you can use MySQL:
+<pre>
+   mysql -u root -p
+   show databases;
+   quit;
+</pre>
+
+Start MySQL at boot: edit /etc/rc.d/rc.local, and add
+<pre>
+   /sbin/service mariadb start
+</pre>
+
+<p/>
+<li><b>C development tools</b>
+<pre>
+   yum install subversion.x86_64
+   yum install gcc.x86_64
+</pre>
+
+<p/>
+<li><b>Java</b>
+<pre>
+   yum install java-1.7.0-openjdk.x86_64
+</pre>
+
+<p/>
+<li><b>ImageMagick</b>
+<pre>
+   yum install ImageMagick.x86_64
+</pre>
+
+</ol>
+
+<a name="build"><b>IV. Build and Test Caucus</b></a>
+<ol>
+<li>Make a userid to test in, e.g.
+<pre>
+   useradd -u 1000 -d /home/croth croth
+   passwd croth
+</pre>
+
+<li>Export Caucus source.&nbsp;
+Logged in as a normal (non-root) user, do:
+<pre>
+   svn export svn://caucus.com/caucus/trunk C5
+</pre>
+
+<li>Build.&nbsp; For a CentOS 6.6 64-bit system, use:
+<pre>
+   cd C5
+   export CPPFLAGS="-D_GNU_SOURCE"
+   ./configure --mysqllib=/usr/lib64/mysql/libmysqlclient.so --nosasl2
+   make
+   mv caucus5.tar ~
+   cd
+   chmod 711 .
+</pre>
+
+If the compilation fails, modify the configure script to add "-lcrypto" immediately after "-lssl",
+and try again.
+
+<li>As root, create a test userid, e.g.
+<pre>
+   useradd -u 1001 -d /home/p7test p7test
+   passwd p7test
+</pre>
+
+<li>Login to the test userid, and install Caucus, e.g.:
+<pre>
+   su - p7test
+   tar xvf /home/croth/caucus5.tar
+   ./install
+</pre>
+
+Suggested hostname: p7test.coexploration.org<br/>
+Suggested email participation id: p7test (but just give junk when asked for its password,
+not testing that just yet)
+
+<pre>
+   cd SWEB
+   ./swebd ./swebd.conf
+</pre>
+
+<p/>
+<li>Configure test id for http.
+<ol type="a">
+<li>Add p7test.coexploration.org to DNS resolution, to point at p7.coexploration.org.
+<li>As root, create /etc/httpd/conf/vhosts/p7test.coexploration.org, containing:
+<pre>
+&lt;VirtualHost 66.135.33.165&gt;
+   ServerName p7test.coexploration.org
+   DocumentRoot /home/p7test/public_html
+
+   &lt;Directory /home/p7test/SWEB&gt;
+      Options All
+      AllowOverride All
+      Require all granted
+   &lt;/Directory&gt;
+   
+   &lt;Directory /home/p7test/REG&gt;
+      Options All
+      AllowOverride All
+      Require all granted
+   &lt;/Directory&gt;
+   
+   &lt;Directory /home/p7test/public_html&gt;
+      Options -Indexes
+   &lt;/Directory&gt;
+   
+   ScriptAlias  /sweb/   /home/p7test/SWEB/
+   ScriptAlias  /reg/    /home/p7test/REG/
+   
+&lt;/VirtualHost&gt;
+</pre>
+
+<li>As root, restart http:
+<pre>
+   service httpd restart
+</pre>
+
+</ol>
+<li>Point a browser at http://p7test.coexploration.org.&nbsp;<br/>
+Create the manager user (specified in the install dialog),
+login, create a conference, and create an item.
+
+<p/>
+<li>Additional configuration.&nbsp; Edit the Caucus configuration
+file (e.g. /home/p7test/SWEB/swebd.conf) and change values
+needed for your specific site.&nbsp;
+For example:
+<pre>
+   Config convertDir /usr/bin
+
+   Config url  /usr/bin/curl
+</pre>
+
+</ol>
+
+</ol>
+
+<p/>
+<a name="av"><b>V. Antivirus</b></a>
+The primary purpose of the antivirus software is to detect
+virus-laden software that is uploaded by users <b>into</b>
+Caucus.
+
+<ol>
+<li>Prepare clamav user and group.
+<pre>
+   groupadd clamav
+   useradd -g clamav -s /bin/false -c "Clam AntiVirus" clamav
+</pre>
+
+<li>Download source for the free ClamAV from 
+http://www.clamav.net/download.html#sourcecode
+
+<li>Build.&nbsp;
+As root, do:
+<pre>
+   tar xvf clamav-0.98.5.tar.gz
+   cd clamav-0.98.5
+   ./configure
+   make
+   make install
+
+   mkdir -p /usr/local/share/clamav
+   chown clamav:clamav /usr/local/share/clamav
+
+   touch /var/log/clamd.log
+   chown clamav /var/log/clamd.log
+
+   touch /var/log/freshclam.log
+   chown clamav /var/log/freshclam.log
+</pre>
+
+<li>Configure:
+<ol type="a">
+<li>Copy /usr/local/etc/clamd.conf.sample to /usr/local/etc/clamd.conf.&nbsp;
+Edit the latter file.<br/>
+Uncomment the "TCPSocket" line.</br>
+Comment out "Example".<br/>
+Change the commented-out LogFile line to:
+<pre>
+   LogFile /var/log/clamd.log
+</pre>
+
+<p/>
+<li>Copy /usr/local/etc/freshclam.conf to /usr/local/etc/freshclam.conf.<br/>
+Comment out the "Example" line.<br/>
+Uncomment the UpdateLogFile line.<br/>
+Change the DatabaseMirror line to (uncommented):
+<pre>
+   DatabaseMirror db.us.clamav.net
+</pre>
+
+<p/>
+<li>Run 'freshclam' virus signature update tool:
+<pre/>
+   freshclam
+</pre>
+
+<p/>
+<li>Run 'freshclam' once a day.&nbsp; Add (something like) the following
+to your crontab:
+<pre>
+   10 3 * * * /usr/local/bin/freshclam --quiet
+</pre>
+
+<p/>
+<li>Start the 'clamd' daemon:
+<pre>
+   clamd
+</pre>
+
+<p/>
+<li>Run 'clamd' at boot time.&nbsp;
+Edit /etc/rc.d/rc.local and add:
+<pre>
+   /usr/local/sbin/clamd
+</pre>
+
+<p/>
+<li>Connect to Caucus.<br/>
+Copy the 'viruschecker' file from the COE git repository, to /usr/local/bin.
+<pre>
+   chmod 755 /usr/local/bin/viruschecker
+</pre>
+
+</ol>
+</ol>
+
+<p/>
+<a name="email"><b>VI. Configure Email</b></a>
+<ol>
+<li>Create a new userid 'mailhandler', e.g. something like:
+<pre>
+   adduser -u 1003 -d /home/mailhandler mailhandler
+</pre>
+
+<li>Set it to throw away email it receives.&nbsp;
+(Later we'll reconfigure it to handle incoming
+email-to-a-Caucus-item.)
+<pre>
+   su - mailhandler
+   echo "/dev/null" >.forward
+   chmod 755 .forward
+</pre>
+
+<p/>
+<li>Configure postfix email.&nbsp;
+Add the text below to the end of /etc/postfix/main.cf,
+substituting in the appropriate values for the underlined text:
+
+<pre>
+   inet_interfaces = all
+   myhostname=<u>p7.coexploration.org</u>
+   mydestination = $myhostname, localhost.$mydomain, localhost
+   mynetworks = <u>66.135.33.165</u>, 127.0.0.1
+   myorigin = $myhostname
+   #alias_maps = hash:/etc/postfix/aliases
+   #alias_database = hash:/etc/postfix/aliases
+   smtpd_sasl_auth_enable = yes
+   broken_sasl_auth_clients = yes
+   smtpd_recipient_restrictions = permit_mynetworks, permit_sasl_authenticated, reject_unauth_destination
+   max_use=10
+   local_recipient_maps =
+   luser_relay = mailhandler
+   #canonical_maps = hash:/etc/postfix/sender_canonical
+</pre>
+
+<b>Note:</b> configuration lines for main.cf <b>must not</b> indented.&nbsp;
+That has a special meaning to postfix (it's a kind of continuation line).
+
+<p/>
+Then restart Postfix:
+<pre>
+   service postfix restart
+</pre>
+
+<p/>
+<li>Allow incoming email.&nbsp;
+Edit /usr/local/bin/firewallRules.txt, and change the ANYONE rule at the bottom
+to include port 25, e.g.
+<pre>
+   ANYONE gets 80 443 25
+</pre>
+Then restart the firewall.&nbsp; As root, run:
+<pre>
+   firewall
+</pre>
+
+<p/>
+<li><b>Test it!</b>&nbsp;
+Make sure you can send email from root.
+
+
+</ol>
+
+
+
+<p/>
+<a name="repl"><b>VII. MySQL Replication</b></a><br/>
+This section assumes that we have two servers in play: server A, which will
+be the master, and server B, which is (mostly) used as a failover server
+in case A should die or become unavailable.
+
+<p/>
+The standard MySQL server (service) on B will be used as the MySQL slave
+in the replication scheme.&nbsp;
+Other databases (i.e. other than those on A) may exist on B, but be
+very careful not to use the names of any databases that could potentially
+be created on A.
+
+<ol>
+<li><b>Clean up the master</b>.&nbsp;
+On A: remove the test Caucus space (and database!).&nbsp;
+This makes setting up the MySQL replication much easier.&nbsp;
+<p/>
+E.g. for a test Caucus space <b>p7test</b>, do:
+<pre>
+   su - p7test
+   ps x | grep "swebd "
+   kill -1 <i>(fill in the process id of the swebs task)</i>
+   exit
+
+   userdel -r p7test
+
+   mysql -u root -p
+   drop database caucus_p7test;
+   quit;
+</pre>
+
+<p/>
+<li><b>Prepare master for replication</b>.&nbsp;
+Shutdown the MySQL service:
+<pre>
+   service mariadb stop
+</pre>
+
+Create the binary logging directory needed for replication:
+<pre>
+   mkdir /var/lib/mysql/log-bin
+   chown mysql:mysql /var/lib/mysql/log-bin
+</pre>
+
+Edit /etc/my.cnf, and somewhere in the "[mysqld]" section, add these lines:
+<pre>
+   server-id=1
+   log-bin=mysql-bin
+   binlog-ignore-db=mysql
+   binlog-ignore-db=information_schema
+</pre>
+
+(If there are any other databases on A that should <b>not</b> be replicated
+to B, add them as well with additional binlog-ignore-db lines.&nbsp;
+For a new server, these two should be the only such databases.)
+
+<p/>
+Restart MySQL, and verify that it is actually working:
+<pre>
+   service mariadb start
+   mysql -u root -p
+   select now();
+   quit;
+</pre>
+If there is a problem, look in /var/lib/mysql  or /var/log for the MySQL logs.
+
+<p/>
+Create the 'replicator' userid in MySQL:
+<pre>
+   mysql -u root -p
+   grant replication slave on *.* to replicator@'slaveserver.com' identified by 'slavepassword';
+   flush privileges;
+   show master status;
+   quit;
+</pre>
+<b>Save the output</b> from 'show master status'; you'll need it later.
+
+<p/>
+<li><b>Open firewall on master to access from slave</b>.&nbsp;
+<p/>
+On A, edit /usr/local/bin/firewallRules.txt, and add rules to allow
+incoming ssh and MySQL requests from B.&nbsp;  E.g. for a slave B
+named p8, add lines something like:
+<pre>
+   P8 is 64.34.196.252
+
+   P8     gets 22 3306
+</pre>
+<p/>
+As root, run 'firewall' to update the firewall according
+to the new rules.
+
+<p/>
+<li><b>Clean up the slave.</b>&nbsp;
+On B, remove the test Caucus site, if any.&nbsp;
+(Follow the instructions from VII.1.)
+
+<p/>
+<li><b>Prepare the slave.</b>&nbsp;
+on B, edit /etc/my.cnf, and in the [mysqld] section, add:
+<pre>
+   server-id=2
+   master-host = masterserver.com
+   master-user = replicator
+   master-password = slavepassword    <i>(from above!)</i>
+   master-connect-retry = 60
+</pre>
+
+Then restart the slave:
+<pre>
+   service mariadb restart
+</pre>
+
+<p/>
+<li><b>Connect the slave to the master.</b>&nbsp;
+On B:
+
+<pre>
+   mysql -u root -p
+   slave stop;
+   reset slave;
+   change master to master_host='masterserver.com',
+   master_user='replicator',
+   master_password='slavepassword',
+   master_log_file='(as shown in master status)',
+   master_log_pos=(as shown in master status);
+
+   start slave;
+   show slave status\G;
+   quit;
+</pre>
+
+You should see "Slave_IO_Running: Yes" and "Slave_SQL_Running: Yes".&nbsp;
+Anything else means something is wrong 
+(e.g. the firewall is blocking the slave, the wrong ports are in use, etc. etc.).&nbsp;
+Check the mysql logs for details.
+
+<p/>
+<li><b>Create replication test</b> and verify that replication is working.
+<p/>
+On the master A, create a simple database that will be used to continuously
+verify that replication is working:
+<pre>
+   create database replication_test;
+   grant all on replication_test.* to replication_test identified by 'tester';
+   use replication_test;
+   CREATE TABLE last_update (
+     now datetime DEFAULT NULL
+   ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+   insert into last_update (now) values (now());
+   quit;
+</pre>
+
+Look on the slave; you should see this database suddenly appear.
+
+<p/>
+<li><b>Automate replication testing.</b>&nbsp;
+On the master A, create a script /usr/local/bin/replication_tester,
+containing:
+<pre>
+   mysql -u replication_test --password='tester' replication_test \
+         -e "update last_update set now=now();"
+</pre>
+
+Make it executable ("chmod 755 /usr/local/bin/replication_tester")
+and run it from cron every 10 minutes.
+
+<p/>
+Copy the file replication_verifier (from the git repository) to
+<b>slave B's</b> /usr/local/bin, and make it executable.&nbsp;
+Edit the script to change or add the email addresses that should
+receive notices about replication failures.
+
+<p/>
+On B, use cron to run the replication_verifier script every 10 minutes, a few minutes
+after the the master runs replication_tester.&nbsp;
+<p/>
+You should receive an email once a day to verify positively that replication
+is working.&nbsp;
+You will also receive an email <b>any time</b> replication_verifier fails.&nbsp;
+A single failure is not important; if there's a lot of activity on the master
+<b>or</b> slave, replication can slow down a bit.&nbsp;
+But multiple failures in a row are worth investigating.
+
+</ol>
+
+<p/>
+<a name="move"><b>VIII. How to move an existing Caucus site</b></a><br/>
+In order to move an existing site, you will have to shut it down
+for a period of time, depending on the size of the site.&nbsp;
+Generally it's best to allow a couple of hours.
+
+<p/>
+If this is a large site that may take many hours to move,
+read section VIII.5.b first -- you can speed up the 
+time to move the site by preparing it with 'rsync' first.
+
+<p/>
+The instructions below assume that the Caucus userid is 'caucus'
+and the database is called 'caucus_caucus'.&nbsp;
+Modify accordingly.
+<ol>
+
+<p/>
+<li><b>Create empty site on the new server.</b>&nbsp;
+Go through the usual procedure of creating an empty Caucus site,
+on the new server.&nbsp;
+Use the <b>same</b> name as the old site on the old server.&nbsp;
+Make sure it works.
+<p/>
+Then make sure to <b>shut it down</b> (see VIII.1 again.)
+
+<li><b>Stop old site processes</b>.&nbsp;  E.g.  on the old site, for site 'caucus', do:
+<pre>
+   su - caucus
+   crontab -r
+
+   ps x
+   echo "========"
+
+   ps x | grep -e swebs -e "swebd " -e java | grep -v grep | \
+   (while read a b; do
+       kill -1 $a
+    done)
+
+   ps x
+</pre>
+You should see a "before and after" list of Caucus processes, 
+split around the "=====" line.&nbsp;
+(There shouldn't be any Caucus-related processes running after
+the split.&nbsp;
+If there are, try it again, or kill remaining processes
+manually.)
+
+<p/>
+<li><b>Change DNS.</b>&nbsp;
+Change the DNS entry for the site to point to the new server.
+
+
+<p/>
+<li><b>Dump the MySQL database.</b>
+Starting in the home directory of the 'caucus' userid:
+<pre>
+   mysqldump -u caucus -p caucus_caucus >caucus_caucus.sql
+</pre>
+
+<p/>
+<li><b>Transfer the entire site.</b>
+Start by removing unused files:
+<pre>
+   rm -rf SOCKET
+   rm -f TEMP/* TMP/*
+</pre>
+
+You can either transfer the site manually, or use 'rsync' to 
+do it for you.&nbsp;
+The manual approach is simplest for a small site; 
+the rsync is better for a large site that may take a long
+time to move.
+
+<ol type="a">
+<li><b>Manual approach</b>.&nbsp;
+Starting in the home directory of the 'caucus' userid:
+<pre>
+   tar cvf /tmp/caucus.tar *
+   gzip    /tmp/caucus.tar
+</pre>
+
+Now scp the /tmp/caucus.tar.gz file to the new server.&nbsp;
+Typically this means you will need to
+open the firewall on the new server (to allow access from the old server) for port 22 first.
+
+<li><b>Rsync</b>.&nbsp;
+In this approach, you gradually synchronize the files in 
+the caucus site on the old server, to the proper locaation on the new server.&nbsp;
+This can be done even while the old server is still running Caucus,
+and then done one final time once you stop the old server.
+<p/>
+
+Assuming that 
+<ul>
+<li>You're logged in as root on the old server
+<li>That the userid is called "caucus" on both old and new servers
+<li>That the firewall on the new server allows incoming port 22 access from the old server
+<li>That /home/caucus has already been created on the new server
+</ul>
+
+<p/>
+Then the following commands would synchronize the files from the old
+to the new server:
+
+<pre>
+   su - caucus
+   nice rsync -avz -e ssh --delete * caucus@newserver.com:/home/caucus >/tmp/rsync.log
+</pre>
+
+It will log the list of files that were copied, in /tmp/rsync.log.&nbsp;
+If you want to run this in the background, wait a few seconds until you know it is running,
+then press ctrl-Z, and type "bg %1".&nbsp;
+Then you can run other commands <b>while</b> this is running.
+
+<p/>
+The rsync process can be repeated, later, as many times as needed; rsync is <b>very</b> good about
+detecting only what has changed on the old server, and copying that over.&nbsp;
+It can even be interrupted and started again, with no loss or error.
+</ol>
+
+<p/>
+<li><b>Overlay the new (empty) site</b> with the old data.&nbsp;
+<br/>
+Assuming that the old data has been placed in /tmp/oldcaucus.tar.gz, 
+as the new 'caucus' user on the new server do:
+<pre>
+   tar xvfz /tmp/oldcaucus.tar.gz      <i>(Skip this step if you've used the rsync method above.)</i>
+   mysql -u caucus -p caucus_caucus -e "source caucus_caucus.sql;"
+</pre>
+
+<p/>
+<li><b>'Update' the site from the new kit.</b>&nbsp;
+IOW, "re-install" Caucus over top of the old data.&nbsp;  E.g.
+<pre>
+   tar xvf whereverTheNewKitIs.tar  <i>(see IV.5)</i>
+   ./install                        <i>(answer all the re-install questions)</i>
+
+   cd SWEB
+   ./swebd ./swebd.conf             <i>(Restart the site)</i>
+</pre>
+
+<p/>
+<li><b>Clean up.</b>&nbsp; On the new server:
+<pre>
+   rm -f /home/caucus/caucus_caucus.sql
+   rm -f /tmp/oldcaucus.tar.gz
+</pre>
+
+<p/>
+Check the output of 'crontab -l' for the moved site, 
+and make sure it does what you expect it to do.
+
+<p/>
+<li><b>Start site at boot.</b>&nbsp;
+Follow the usual directions to start the Caucus site at boot-time, e.g.
+edit /etc/rc.d/rc.local and add:
+<pre>
+   rm -f /home/caucus/SOCKET/sweb /home/caucus/SOCKET/sweb0*
+   /home/caucus/SWEB/swebd /home/caucus/SWEB/swebd.conf
+</pre>
+
+(Also <b>remove</b> the equivalent lines from the old server!)
+</ol>
+
+<p/>
+<a name="rsync"><b>IX. Rsync file backup</b></a><br/>
+In addition to the automatic backup of the MySQL data via replication,
+the slave (aka "failover") server should also have regular backups
+of all other relevant files, notably including:
+<ul>
+<li>Uploaded/attached files in Caucus.
+<li>Separate 'static' web sites.
+<li>Any other files that you would need to properly "fail over" to the slave
+   in the event that the master died.
+</ul>
+
+<p/>
+The wonderful thing about rsync is that it is smart enough to copy only
+the new files, the <b>changed</b> files (and <b>changed parts</b> of those files) over.&nbsp;
+So it uses very near the theoretical minimum bandwidth to do the 
+synchronization.
+<p/>
+The steps are:
+
+<ol>
+<li><b>Open firewall</b>, on the slave, <b>to</b> the master.&nbsp;
+Look up the master's IP address, and add it to the slave's /usr/local/bin/firewallRules.txt.
+<p/>
+E.g. for master p7 and slave p8, on p8 do:
+<pre>
+   nslookup
+   p7.coexploration.org
+   ^C                       <i>(control-C)</i>
+</pre>
+Edit the firewallRules.txt, add 
+<pre>
+   P7 is <i>(IP address from previous step)</i>
+   P7 gets 22
+</pre>
+
+Then run 'firewall'.
+
+<p/>
+<li><b>Provide for password-less ssh login from master to slave</b>.&nbsp;
+<p/>
+On the master, look for /root/.ssh/id_rsa.pub.&nbsp;
+If it does not exist, do:
+<pre>
+   ssh-keygen -b 1024 -t rsa
+</pre>
+and just press Enter at all the prompts.
+
+<p/>
+Then append the contents of that file on the master,
+<b>to</b> the end of the file /root/.ssh/authorized_keys2 on the slave.&nbsp;
+If the .ssh directory doesn't exist, do:
+<pre>
+   mkdir     /root/.ssh
+   chmod 700 /root/.ssh
+</pre>
+
+If the file authorized_keys2 doesn't exist, just copy the id_rsa.pub file to authorized_keys2.
+
+<p/>
+Check that it works.&nbsp;
+From the master, you should be able to do
+<pre>
+   ssh root@slavehostname.org
+</pre>
+and get a login prompt, <b>without</b> entering a password.
+
+<p/>
+<li><b>Install the backup script.</b>&nbsp;
+Copy the file backupToSlave.sh from the COE repository to /root on the master.&nbsp;
+Make sure it is executable, e.g.
+<pre>
+   chmod 700 /root/backupToSlave.sh
+</pre>
+
+Edit the file so that the symbols 'master' and 'idhost' are correct.
+<p/>
+Set the file to run (at least) once a day, via crontab on the master.&nbsp;
+I like to do this via a file, e.g:
+<pre>
+   crontab -l >crontab_file
+   <i>(edit crontab_file until it's right)</i>
+   crontab crontab_file
+</pre>
+
+The crontab entry for the backup script would look something like:
+<pre>
+   10 3 * * * /root/backupToSlave.sh
+</pre>
+(which runs at 10 minutes after 3 am, every day)
+
+<p/>
+<li><b>Prepare the slave.</b>&nbsp;  On the slave, do:
+<pre>
+   mkdir /root/p7     <i>(or whatever value you have for 'master' in the backup script)</i>
+   mkdir /root/p7/usr
+   mkdir /root/p7/usr/local
+   mkdir /root/p7/usr/local/bin
+</pre>
+
+<p/>
+<li><b>Test the backups.</b>&nbsp;
+Make sure that the backup script is run from cron.&nbsp;
+Then later that day, on the slave, examine the contents of (say) /root/p7 to see if
+it has the contents you expect.&nbsp;
+<p/>
+Also look on the master, in /tmp, 
+for a file named "backup" with the date and time of the expected backup as part of the name.&nbsp;
+It should contain a list of the files that were transferred, as well as the starting and ending
+time of the backup process.
+
+<p/>
+<li><b>Using the backups.</b>&nbsp;
+If you ever need the backups, most of the work can be achieved by simply moving the
+appropriate contents over, e.g.
+<pre>
+   mv /root/p7/home/* /home
+   cp /root/p7/usr/local/bin/* /usr/local/bin
+</pre>
+
+You may need to create userids on the slave to match those that were on
+the master: examine /root/p7/etc/passwd to see the list of ids that
+were on the master.
+
+<p/>
+Similarly, you may need the httpd configuration files from /root/p7/etc/httpd/conf
+and /root/p7/etc/httpd/conf/vhosts copied, and lightly edited (e.g. to put in the
+correct IP address) into the equivalent locations on the slave.
+ 
+
+
+
+</ol>
+
+
+<p/>
+<a name="wordpress"><b>X. WordPress Support</b></a><br/>
+This section is not directly related to Caucus or the backup/failover mechanisms.&nbsp;
+But it is a place to record useful configuration information about WordPress.
+
+<ol>
+<li><b>Install PHP</b>.&nbsp; As root, do:
+<pre>
+   yum install php.x86_64
+   yum install php-gd.x86_64
+   yum install php-mysql.x86_64
+</pre>
+
+Edit /etc/php.ini, and change upload_max_filesize to something large, say 2G.
+
+<pre>
+   service httpd restart
+</pre>
+
+<li><b>Install WordPress</b>.&nbsp;
+A server may have multiple, separate, installations of WordPress.&nbsp;
+Follow these steps to install a single instance.
+
+<ol type="a">
+<li>Create a new user, e.g. "events".&nbsp; As root:
+<pre>
+   useradd -u <i>nnnnn</i> -d /home/events events   (where '<i>nnnnn</i>' is an unused number in /etc/passwd)
+   passwd events
+   su - events
+   chmod 711 .
+</pre>
+
+<li><b>Download and install</b> the WordPress software (from 
+<a href="http://codex.wordpress.org/Installing_WordPress"
+  >codex.wordpress.org/Installing_WordPress</a>).&nbsp;
+Once you get the file (typically called something like wordpress-4.1.tar.gz),
+unpack it in the 'events' userid:
+<pre>
+   su - events      <i>(if you're not already logged in as 'events')</i>
+   tar xvfz /whereverthefileis/wordpress-4.1.tar.gz
+</pre>
+
+<li><b>Define the DNS.</b>&nbsp;
+E.g. change the DNS server so that (say) events.coexploration.org points to the IP
+address of the new server.
+
+<li><b>Define the HTTP record</b>.&nbsp; For example, create /etc/httpd/conf/vhosts,
+containing:
+<pre>
+   &lt;VirtualHost 66.135.33.165&gt;
+      ServerName     events.coexploration.org
+      DocumentRoot /home/events/wordpress
+   &lt;/VirtualHost&gt;
+</pre>
+and then (as root) restart httpd, e.g.
+<pre>
+   service httpd restart
+</pre>
+
+<li><b>Create the database</b>.&nbsp; I recommend following a standard pattern,
+modelled after the Caucus approach.&nbsp;
+E.g. prepend "wp_" to the name of the site (in this case "events").&nbsp;
+<pre>
+   mysql -u root -p
+   create database wp_events;
+   grant all on wp_events.* to wp_events@localhost identified by 'somePassword';
+   flush privilegs;
+   quit;
+</pre>
+
+<li><b>Run WordPress installer</b>.&nbsp;
+Point your browser at (for example) http://events.coexploration.org/wp-admin/setup-config.php.&nbsp;
+<table border="1">
+<tr><td>Database Name&nbsp;&nbsp;</td>
+
+<td>wp_events</td>
+<tr><td>User Name</td>
+<td>wp_events</td>
+
+<tr><td>Password</td>
+<td><i>(whatever you used above)</i></td>
+
+<tr><td>Database Host</td>
+<td>localhost</td>
+
+<tr><td>Table Prefix</td>
+<td>_</td>  <td><i>(Yes, really just an underscore)</i></td>
+</table>
+
+<li><b>Create wp-config.php</b>.&nbsp;
+The installer will complain that it can't write wp-config.php.&nbsp;
+This is good!
+
+<p/>
+Manually cut-and-paste the text it offers you into (for example)
+/home/events/wordpress/wp-config.php.&nbsp;
+Continue with the install.
+
+<li><b>Fill in Site info</b>.&nbsp;
+Fill in the initial site info, admin user, password, and email.&nbsp;
+These can all be changed later.
+
+</ol>
+
+
+<p/>
+<li><b>WordPress updates</b>.&nbsp;
+WordPress has a, shall we say, pesky but useful auto-update mechanism.&nbsp;
+In order to allow the auto-update to work, one must enable an FTP server,
+and (briefly) open the firewall.
+
+<p/>
+The directions below enable this for a single user 'wp'.&nbsp;
+Adapt accordingly.&nbsp;
+All instructions are done as root.
+
+<ol type="a">
+<li><b>Install and configure FTP server</b>.&nbsp; Do this <b>once</b>:
+<pre>
+    yum install vsftpd.x86_64
+</pre>
+
+Edit /etc/vsftpd/vsftpd.conf, and edit it so that you have:
+<pre>
+   anonymous_enable=NO
+   local_enable=YES
+   write_enable=YES
+   userlist_deny=NO
+   userlist_file=/etc/vsftpd/allowed_users
+</pre>
+
+Then create a file /etc/vsftpd/allowed_users, containing just the one allowed userid 'wp':
+<pre>
+   wp
+</pre>
+
+(For more information about vsftpd.conf, see 
+<a href="http://ubuntuforums.org/showthread.php?t=518293"
+  >ubuntuforums.org/showthread.php?t=518293</a>.)
+
+<li><b>Create a script to turn off the firewall.</b>&nbsp;
+E.g. create a file /usr/local/bin/firewallOff, containing:
+<pre>
+   #!/bin/sh
+   
+   modprobe ip_tables
+   modprobe ip_conntrack
+   modprobe ip_conntrack_ftp
+   
+   iptables --flush
+   iptables --delete-chain
+   
+   iptables -P INPUT   ACCEPT
+   iptables -P FORWARD ACCEPT
+   iptables -P OUTPUT  ACCEPT
+</pre>
+
+Make it executable by root:
+<pre>
+   chmod 700 /usr/local/bin/firewallOff
+</pre>
+
+<li><b>Run vsftpd</b> when you actually need to do the WordPress update.&nbsp;
+<pre>
+   firewallOff
+   vsftpd
+</pre>
+
+<li><b>Do the WordPress update.</b>
+
+<li><b>Restore the firewall, and stop vsftpd</b>.
+<pre>
+   firewall
+   ps -ef | grep vsftpd | grep -v grep
+</pre>
+
+And kill each process that it shows.&nbsp;
+E.g. if it shows the following:
+<pre>
+   root     28413     1  0 16:44 ?        00:00:00 vsftpd
+</pre>
+
+Then do:
+<pre>
+   kill -9 28413
+</pre>
+
+</ol>
+
+<li><b>WordPress Themes</b>.&nbsp;
+WordPress has a bizarre security model.&nbsp;
+In order to install new themes, several things have to be turned off (and then on again aftewards).
+
+<ol type="a">
+<li>Make the upload directory writeable by the web server.&nbsp;
+For WordPress installed in /home/wp, do:
+<pre>
+   chmod 777 /home/wp/wordpress/wp-content
+</pre>
+
+<li>Set up the FTP server, as in X.3.a.
+<li>Open the firewall (shudder), as in X.3.b and X.3.c.
+<li>Install the new theme via the WordPress interface.
+<li>Close the firewall and stop FTP, as in X.3.e.
+<li>Restore the file permissions:
+<pre>
+   chmod 755 /home/wp/wordpress/wp-content
+</pre>
+
+</ol>
+
+</ol>
+
+
+
+
+
+<p/>
+<b>XI. Next?</b>
+<ol>
+<li>Docker?
+<li>...?
+</ol>
+
+
+</body>
+</html>
